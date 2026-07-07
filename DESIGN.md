@@ -1,8 +1,3 @@
----
-title: DESIGN
-
----
-
 version: 0.1.0
 name: Mint Design System
 product: Omise (Monolith Payment Orchestration)
