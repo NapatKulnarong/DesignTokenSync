@@ -164,45 +164,97 @@
 
     document.getElementById('apply-btn').onclick = () => {
       document.getElementById('apply-btn').disabled = true;
-      document.getElementById('apply-btn').innerText = "Deploying updates to code blocks...";
+      document.getElementById('apply-btn').innerText = "Deploying surgical updates...";
       
       let updatedMarkdown = fullOriginalMarkdown;
 
-      // 1. SURGICAL INJECTION: Split 'shadcn theme' into Light and Dark Mode blocks
+      // 1. SURGICAL REPLACEMENT: Map 'shadcn theme' directly into clean mode structures
       if (localGroupedYaml["shadcn theme"]) {
         const lines = localGroupedYaml["shadcn theme"].split('\n');
-        let lightLines = "";
-        let darkLines = "";
+        let lightTokens = {};
+        let darkTokens = {};
+        let backgroundBodyToken = 'background-body: "{tailwind.base.black}"';
 
         lines.forEach(line => {
           if (!line.trim()) return;
-          if (line.includes('-light')) {
-            lightLines += line.replace('-light', '') + "\n";
-          } else if (line.includes('-dark')) {
-            darkLines += line.replace('-dark', '') + "\n";
-          } else {
-            if (line.startsWith('background-body')) {
-              const bodyRegex = /(## Application Shell[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
-              updatedMarkdown = updatedMarkdown.replace(bodyRegex, `$1${line}\n$3`);
-            } else {
-              lightLines += line + '\n';
-              darkLines += line + '\n';
-            }
+          
+          // Separate clean lines by light/dark suffix
+          if (line.includes('-light:')) {
+            const cleanKey = line.split('-light:')[0].trim() + '-light';
+            const value = line.split('-light:')[1].trim();
+            lightTokens[cleanKey] = value;
+          } else if (line.includes('-dark:')) {
+            const cleanKey = line.split('-dark:')[0].trim() + '-dark';
+            const value = line.split('-dark:')[1].trim();
+            darkTokens[cleanKey] = value;
+          } else if (line.startsWith('background-body:')) {
+            backgroundBodyToken = line;
           }
         });
 
-        const lightRegex = /(## 1\. Light Mode[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
-        if (lightRegex.test(updatedMarkdown)) {
-          updatedMarkdown = updatedMarkdown.replace(lightRegex, `$1${lightLines}$3`);
+        // Update Application Shell Code block
+        const shellRegex = /(## Application Shell[\s\S]*?```yaml\n)([\s\S]*?)(```)/g;
+        if (shellRegex.test(updatedMarkdown)) {
+          updatedMarkdown = updatedMarkdown.replace(shellRegex, `$1${backgroundBodyToken}\n$3`);
         }
 
-        const darkRegex = /(## 2\. Dark Mode[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
-        if (darkRegex.test(updatedMarkdown)) {
-          updatedMarkdown = updatedMarkdown.replace(darkRegex, `$1${darkLines}$3`);
+        // Clean replacement for Light Mode Blocks inside your exact subsections
+        const lightSectionMap = {
+          "### Background": ["background-light", "inverse-light", "white", "black", "transparent"],
+          "### Surface": ["card-light", "card-low-light", "card-high-light", "popover-light", "muted-light"],
+          "### Foreground": ["foreground-light", "subtle-foreground-light", "muted-foreground-light", "inverse-foreground-light", "card-foreground-light", "popover-foreground-light"],
+          "### Brand & Accent": ["primary-light", "primary-foreground-light", "primary-subtle-light", "primary-outline-light", "secondary-light", "secondary-foreground-light", "secondary-subtle-light", "secondary-outline-light", "accent-light", "accent-foreground-light", "accent-subtle-light", "accent-outline-light"],
+          "### Semantic": ["destructive", "destructive-foreground", "destructive-subtle", "warning", "warning-foreground", "warning-subtle-foreground", "warning-subtle", "success", "success-foreground", "success-subtle", "purple", "purple-foreground", "purple-subtle", "orange", "orange-foreground", "orange-subtle", "brown-light", "brown-foreground", "brown-subtle-light"],
+          "### Border & Ring": ["border-light", "input-light", "ring-light", "destructive-outline", "warning-outline", "success-outline", "purple-outline", "orange-outline", "brown-outline-light"],
+          "### Sidebar": ["sidebar", "sidebar-hover", "sidebar-foreground", "sidebar-active", "sidebar-divider", "sidebar-accent", "sidebar-accent-foreground", "sidebar-border-light", "sidebar-ring", "hover-white"],
+          "### Appbar": ["appbar", "appbar-hover", "appbar-foreground", "appbar-active", "appbar-active-foreground", "appbar-accent", "appbar-accent-foreground", "appbar-border"]
+        };
+
+        for (const [subHeader, tokenKeys] of Object.entries(lightSectionMap)) {
+          let blockYaml = "";
+          tokenKeys.forEach(key => {
+            if (lightTokens[key]) blockYaml += `${key}: ${lightTokens[key]}\n`;
+          });
+
+          const subBlockRegex = new RegExp(`(${subHeader}[\\s\\S]*?```yaml\\n)([\\s\\S]*?)(```)`, 'g');
+          if (subBlockRegex.test(updatedMarkdown) && blockYaml) {
+            updatedMarkdown = updatedMarkdown.replace(subBlockRegex, `$1${blockYaml}$3`);
+          }
+        }
+
+        // Clean replacement for Dark Mode Blocks inside your exact subsections
+        const darkSectionMap = {
+          "### Background": ["background-dark", "inverse-dark", "white", "black", "transparent"],
+          "### Surface": ["card-dark", "card-low-dark", "card-high-dark", "popover-dark", "muted-dark"],
+          "### Foreground": ["foreground-dark", "subtle-foreground-dark", "muted-foreground-dark", "inverse-foreground-dark", "card-foreground-dark", "popover-foreground-dark"],
+          "### Brand & Accent": ["primary-dark", "primary-foreground-dark", "primary-subtle-dark", "primary-outline-dark", "secondary-dark", "secondary-foreground-dark", "secondary-subtle-dark", "secondary-outline-dark", "accent-dark", "accent-foreground-dark", "accent-subtle-dark", "accent-outline-dark"],
+          "### Semantic": ["destructive", "destructive-foreground", "destructive-subtle", "warning", "warning-foreground", "warning-subtle-foreground", "warning-subtle", "success", "success-foreground", "success-subtle", "purple", "purple-foreground", "purple-subtle", "orange", "orange-foreground", "orange-subtle", "brown-dark", "brown-foreground", "brown-subtle-dark"],
+          "### Border & Ring": ["border-dark", "input-dark", "ring-dark", "destructive-outline", "warning-outline", "success-outline", "purple-outline", "orange-outline", "brown-outline-dark"],
+          "### Sidebar": ["sidebar", "sidebar-hover", "sidebar-foreground", "sidebar-active", "sidebar-divider", "sidebar-accent", "sidebar-accent-foreground", "sidebar-border-dark", "sidebar-ring", "hover-white"],
+          "### Appbar": ["appbar", "appbar-hover", "appbar-foreground", "appbar-active", "appbar-active-foreground", "appbar-accent", "appbar-accent-foreground", "appbar-border"]
+        };
+
+        // Select everything inside '## 2. Dark Mode' section context
+        let darkSectionPart = updatedMarkdown.split('## 2. Dark Mode')[1] || "";
+        for (const [subHeader, tokenKeys] of Object.entries(darkSectionMap)) {
+          let blockYaml = "";
+          tokenKeys.forEach(key => {
+            if (darkTokens[key]) blockYaml += `${key}: ${darkTokens[key]}\n`;
+          });
+
+          const subBlockRegex = new RegExp(`(${subHeader}[\\s\\S]*?```yaml\\n)([\\s\\S]*?)(```)`, 'g');
+          if (subBlockRegex.test(darkSectionPart) && blockYaml) {
+            darkSectionPart = darkSectionPart.replace(subBlockRegex, `$1${blockYaml}$3`);
+          }
+        }
+        
+        // Stitch Dark Mode changes back safely
+        if (updatedMarkdown.includes('## 2. Dark Mode')) {
+          updatedMarkdown = updatedMarkdown.split('## 2. Dark Mode')[0] + '## 2. Dark Mode' + darkSectionPart;
         }
       }
 
-      // 2. SURGICAL INJECTION: Map 'Tailwind Colors' items into separate Palette fields
+      // 2. SURGICAL REPLACEMENT: Map 'Tailwind Colors' items into separate Palette sections natively
       if (localGroupedYaml["Tailwind Colors"]) {
         const colorLines = localGroupedYaml["Tailwind Colors"].split('\n');
         const colorGroups = {};
@@ -212,6 +264,7 @@
           const parts = line.split('/');
           if (parts.length > 1) {
             const groupName = parts[0].trim();
+            // Restores dot notation syntax to match your existing document fields exactly
             const formattedLine = `tailwind.${groupName}.${line.replace(`${groupName}/`, '')}`;
             if (!colorGroups[groupName]) colorGroups[groupName] = [];
             colorGroups[groupName].push(formattedLine);
@@ -229,7 +282,7 @@
       }
 
       const base64Content = btoa(unescape(encodeURIComponent(updatedMarkdown)));
-      const commitMsg = "style: automated surgical token update for consolidated layout blocks";
+      const commitMsg = "style: automated clean token realignment mapping sync";
 
       parent.postMessage({ 
         pluginMessage: { 
