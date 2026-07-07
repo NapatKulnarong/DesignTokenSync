@@ -15,7 +15,6 @@
     .log-item { margin-bottom: 4px; font-family: monospace; }
     .added { color: #16a34a; font-weight: 600; }
     .modified { color: #d97706; font-weight: 600; }
-    .deleted { color: #dc2626; font-weight: 600; }
     .label { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px; }
   </style>
 </head>
@@ -32,18 +31,11 @@
   <button id="apply-btn">3. Apply Changes to HackMD.io</button>
 
   <script>
-    // CRITICAL SECURITY LINK CONFIGURATION
-    const GITHUB_TOKEN = "ghp_YOUR_MASTER_TOKEN_HERE"; // Put YOUR Personal Access Token here
-    const REPO_OWNER = "NapatKulnarong";
-    const REPO_NAME = "DesignTokenSync";
-    const FILE_PATH = "DESIGN.md";
-
     let remoteTokens = {};
     let fullOriginalMarkdown = "";
     let fileSha = "";
     let generatedYamlBlock = "";
 
-    // Parse existing keys out of the current document markdown file
     function parseTokensFromMarkdown(mdContent) {
       const tokens = {};
       const codeBlockRegex = /```yaml([\s\S]*?)```/g;
@@ -61,8 +53,14 @@
       return tokens;
     }
 
-    // Capture initial options payloads from Figma thread
-    window.onmessage = async (event) => {
+    // Trigger Step 1: Tell backend to fetch from GitHub securely
+    document.getElementById('compare-btn').onclick = () => {
+      document.getElementById('compare-btn').disabled = true;
+      document.getElementById('changelog').innerText = "Fetching source data via secure backend bridge...";
+      parent.postMessage({ pluginMessage: { type: 'FETCH_FROM_GITHUB' } }, '*');
+    };
+
+    window.onmessage = (event) => {
       const message = event.data.pluginMessage;
       if (!message) return;
 
@@ -73,7 +71,22 @@
       }
 
       if (message.type === 'ERROR') {
-        document.getElementById('changelog').innerHTML = `<span style='color:red;'>Error: ${message.message}</span>`;
+        document.getElementById('changelog').innerHTML = `<span style='color:red;'>${message.message}</span>`;
+        document.getElementById('compare-btn').disabled = false;
+        document.getElementById('apply-btn').disabled = false;
+        return;
+      }
+
+      // Handle raw data incoming back from safe backend thread extraction
+      if (message.type === 'GITHUB_FETCH_SUCCESS') {
+        const data = message.payload;
+        fileSha = data.sha;
+        fullOriginalMarkdown = decodeURIComponent(escape(atob(data.content)));
+        remoteTokens = parseTokensFromMarkdown(fullOriginalMarkdown);
+        
+        // Data is ready, now kick off step 2 (Compare tokens)
+        const collectionId = document.getElementById('collection-select').value;
+        parent.postMessage({ pluginMessage: { type: 'EXTRACT_TOKENS', collectionId } }, '*');
         return;
       }
 
@@ -83,12 +96,10 @@
         let localTokenKeys = new Set();
         const modeMap = { 1: 'light', 2: 'dark' };
         
-        let activeCollectionName = tokens[0] ? tokens[0].collection : "Tokens";
         generatedYamlBlock = "";
 
         tokens.forEach(token => {
           const modeIds = Object.keys(token.values);
-          
           const checkDiff = (key, val) => {
             localTokenKeys.add(key);
             if (remoteTokens[key] === undefined) {
@@ -123,80 +134,45 @@
 
         document.getElementById('changelog').innerHTML = logHTML || `<div style="color: #64748b;">✓ No changes detected. Figma matches HackMD perfectly.</div>`;
         document.getElementById('compare-btn').disabled = false;
-        
-        if (logHTML) {
-          document.getElementById('apply-btn').style.display = 'block';
-        } else {
-          document.getElementById('apply-btn').style.display = 'none';
-        }
+        document.getElementById('apply-btn').style.display = logHTML ? 'block' : 'none';
+        return;
+      }
+
+      if (message.type === 'GITHUB_PUSH_SUCCESS') {
+        document.getElementById('changelog').innerHTML = "<div style='color:#16a34a; font-weight:bold;'>🎉 SUCCESS! HackMD has been successfully updated live!</div>";
+        document.getElementById('apply-btn').style.display = 'none';
+        document.getElementById('apply-btn').disabled = false;
       }
     };
 
-    // Step 2 & 3: Run the comparison fetch routines
-    document.getElementById('compare-btn').onclick = async () => {
-      document.getElementById('compare-btn').disabled = true;
-      document.getElementById('changelog').innerText = "Fetching source data from HackMD/GitHub...";
-      
-      const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
-      try {
-        const response = await fetch(url, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
-        if (!response.ok) throw new Error("Could not download file.");
-        
-        const data = await response.json();
-        fileSha = data.sha; // Save git hash pointer to enable overwriting
-        fullOriginalMarkdown = decodeURIComponent(escape(atob(data.content)));
-        remoteTokens = parseTokensFromMarkdown(fullOriginalMarkdown);
-        
-        const collectionId = document.getElementById('collection-select').value;
-        parent.postMessage({ pluginMessage: { type: 'EXTRACT_TOKENS', collectionId } }, '*');
-      } catch (err) {
-        document.getElementById('changelog').innerHTML = `<span style='color:red;'>Network error: ${err.message}</span>`;
-        document.getElementById('compare-btn').disabled = false;
-      }
-    };
-
-    // Step 4: One-click background push injector
-    document.getElementById('apply-btn').onclick = async () => {
+    // Trigger Step 3: Tell backend to push data to GitHub securely
+    document.getElementById('apply-btn').onclick = () => {
       document.getElementById('apply-btn').disabled = true;
-      document.getElementById('apply-btn').innerText = "Injecting changes into HackMD...";
+      document.getElementById('apply-btn').innerText = "Deploying live updates to cloud thread...";
       
       const select = document.getElementById('collection-select');
       const selectedCollectionName = select.options[select.selectedIndex].text;
       
-      // Target the matching section header inside your DESIGN.md text layout
       const sectionRegex = new RegExp(`(## ${selectedCollectionName}\\n\\n\`\`\`yaml\\n)([\\s\\S]*?)(\`\`\`)`, 'g');
-      
       let updatedMarkdown = fullOriginalMarkdown;
+      
       if (sectionRegex.test(fullOriginalMarkdown)) {
         updatedMarkdown = fullOriginalMarkdown.replace(sectionRegex, `$1${generatedYamlBlock}$3`);
       } else {
         updatedMarkdown += `\n\n## ${selectedCollectionName}\n\n\`\`\`yaml\n${generatedYamlBlock}\`\`\n`;
       }
 
-      // Commit changes directly back into GitHub repo line via API request payload
-      const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
-      try {
-        const putResponse = await fetch(url, {
-          method: 'PUT',
-          headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: `style: automated token sync injection for collection [${selectedCollectionName}]`,
-            content: btoa(unescape(encodeURIComponent(updatedMarkdown))),
-            sha: fileSha
-          })
-        });
+      const base64Content = btoa(unescape(encodeURIComponent(updatedMarkdown)));
+      const commitMsg = `style: automated token sync injection for collection [${selectedCollectionName}]`;
 
-        if (putResponse.ok) {
-          document.getElementById('changelog').innerHTML = "<div style='color:#16a34a; font-weight:bold;'>🎉 SUCCESS! HackMD has been successfully updated live!</div>";
-          document.getElementById('apply-btn').style.display = 'none';
-          parent.postMessage({ pluginMessage: { type: 'NOTIFY', message: 'HackMD documentation sync completed!' } }, '*');
-        } else {
-          throw new Error("GitHub rejected the write update pack.");
-        }
-      } catch (err) {
-        document.getElementById('changelog').innerHTML = `<span style='color:red;'>Write failure: ${err.message}</span>`;
-      }
-      document.getElementById('apply-btn').disabled = false;
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'PUSH_TO_GITHUB', 
+          content: base64Content, 
+          commitMessage: commitMsg, 
+          sha: fileSha 
+        } 
+      }, '*');
     };
   </script>
 </body>
