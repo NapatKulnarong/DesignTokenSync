@@ -24,13 +24,13 @@
   <div class="label">Review System Modifications:</div>
   <div id="changelog" class="change-log-box">Click above to run a complete workspace validation scan...</div>
   
-  <button id="apply-btn">2. Apply All Changes to HackMD.io</button>
+  <button id="apply-btn">2. Apply Color Updates to HackMD.io</button>
 
   <script>
     let remoteTokens = {};
     let fullOriginalMarkdown = "";
     let fileSha = "";
-    let finalMasterMarkdownOutput = "";
+    let localGroupedYaml = {}; // Stores generated tokens mapped by collection name
 
     function parseTokensFromMarkdown(mdContent) {
       const tokens = {};
@@ -71,7 +71,6 @@
         fullOriginalMarkdown = decodeURIComponent(escape(atob(data.content)));
         remoteTokens = parseTokensFromMarkdown(fullOriginalMarkdown);
         
-        // Trigger multi-collection master scan
         parent.postMessage({ pluginMessage: { type: 'EXTRACT_ALL_TOKENS' } }, '*');
         return;
       }
@@ -82,81 +81,162 @@
         let localTokenKeys = new Set();
         const modeMap = { 1: 'light', 2: 'dark' };
         
-        // Group everything by collection dynamically
-        const grouped = {};
+        localGroupedYaml = {};
+
         tokens.forEach(token => {
           if (token.name.startsWith('hide/')) return;
-          if (!grouped[token.collection]) grouped[token.collection] = [];
-          grouped[token.collection].push(token);
+          
+          if (!localGroupedYaml[token.collection]) {
+            localGroupedYaml[token.collection] = "";
+          }
+
+          const modeIds = Object.keys(token.values);
+          const checkDiff = (key, val) => {
+            localTokenKeys.add(key);
+            if (remoteTokens[key] === undefined) {
+              logHTML += `<div class="log-item added">[ADDED] ${key}: "${val}"</div>`;
+            } else if (remoteTokens[key] !== val) {
+              logHTML += `<div class="log-item modified">[MODIFIED] ${key}: "${remoteTokens[key]}" ➔ "${val}"</div>`;
+            }
+          };
+
+          if (modeIds.length === 1) {
+            const val = token.values[modeIds[0]];
+            localGroupedYaml[token.collection] += `${token.name}: "${val}"\n`;
+            checkDiff(token.name, val);
+          } else {
+            const firstVal = token.values[modeIds[0]];
+            const allModesIdentical = modeIds.every(mId => token.values[mId] === firstVal);
+
+            if (allModesIdentical) {
+              localGroupedYaml[token.collection] += `${token.name}: "${firstVal}"\n`;
+              checkDiff(token.name, firstVal);
+            } else {
+              modeIds.forEach((modeId, index) => {
+                const modeSuffix = modeMap[index + 1] || `mode_${index + 1}`;
+                const keyName = `${token.name}-${modeSuffix}`;
+                const val = token.values[modeId];
+                localGroupedYaml[token.collection] += `${keyName}: "${val}"\n`;
+                checkDiff(keyName, val);
+              });
+            }
+          }
         });
 
-        finalMasterMarkdownOutput = "";
-
-        // Build the complete merged markdown string
-        for (const [collection, tokenList] of Object.entries(grouped)) {
-          finalMasterMarkdownOutput += `## ${collection}\n\n\`\`\`yaml\n`;
-          
-          tokenList.forEach(token => {
-            const modeIds = Object.keys(token.values);
-            const checkDiff = (key, val) => {
-              localTokenKeys.add(key);
-              if (remoteTokens[key] === undefined) {
-                logHTML += `<div class="log-item added">[ADDED] ${key}: "${val}"</div>`;
-              } else if (remoteTokens[key] !== val) {
-                logHTML += `<div class="log-item modified">[MODIFIED] ${key}: "${remoteTokens[key]}" ➔ "${val}"</div>`;
-              }
-            };
-
-            if (modeIds.length === 1) {
-              const val = token.values[modeIds[0]];
-              finalMasterMarkdownOutput += `${token.name}: "${val}"\n`;
-              checkDiff(token.name, val);
-            } else {
-              const firstVal = token.values[modeIds[0]];
-              const allModesIdentical = modeIds.every(mId => token.values[mId] === firstVal);
-
-              if (allModesIdentical) {
-                finalMasterMarkdownOutput += `${token.name}: "${firstVal}"\n`;
-                checkDiff(token.name, firstVal);
-              } else {
-                modeIds.forEach((modeId, index) => {
-                  const modeSuffix = modeMap[index + 1] || `mode_${index + 1}`;
-                  const keyName = `${token.name}-${modeSuffix}`;
-                  const val = token.values[modeId];
-                  finalMasterMarkdownOutput += `${keyName}: "${val}"\n`;
-                  checkDiff(keyName, val);
-                });
-              }
-            }
-          });
-          finalMasterMarkdownOutput += `\`\`\`\n\n`;
-        }
-
-        // Catch true deletions across the entire ecosystem safely
+        // Smart cleanup filter: Only flag true token deletions if it was an active color token path
         Object.keys(remoteTokens).forEach(remoteKey => {
+          // If the key is a brand asset logo, typo token, or component markup keyword, ignore it
+          const nonColorKeywords = ['logo', 'favicon', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'text-', 'font', 'lineHeight', 'component', 'width', 'height', 'padding', 'rounded'];
+          if (nonColorKeywords.some(keyword => remoteKey.toLowerCase().includes(keyword))) return;
+
           if (!localTokenKeys.has(remoteKey)) {
             logHTML += `<div class="log-item deleted">[REMOVED FROM FIGMA] ${remoteKey}</div>`;
           }
         });
 
-        document.getElementById('changelog').innerHTML = logHTML || `<div style="color: #64748b;">✓ No changes detected. All collections match HackMD perfectly.</div>`;
+        document.getElementById('changelog').innerHTML = logHTML || `<div style="color: #64748b;">✓ No color structural changes detected. Your documentation is up to date.</div>`;
         document.getElementById('compare-btn').disabled = false;
         document.getElementById('apply-btn').style.display = logHTML ? 'block' : 'none';
         return;
       }
 
       if (message.type === 'GITHUB_PUSH_SUCCESS') {
-        document.getElementById('changelog').innerHTML = "<div style='color:#16a34a; font-weight:bold;'>🎉 SUCCESS! All collections synced to HackMD!</div>";
+        document.getElementById('changelog').innerHTML = "<div style='color:#16a34a; font-weight:bold;'>🎉 SUCCESS! Colors updated inside HackMD.io template blocks securely!</div>";
         document.getElementById('apply-btn').style.display = 'none';
       }
     };
 
+    // Trigger Step 2: Inject tokens surgically into matching sections
     document.getElementById('apply-btn').onclick = () => {
       document.getElementById('apply-btn').disabled = true;
-      document.getElementById('apply-btn').innerText = "Deploying live updates to cloud thread...";
+      document.getElementById('apply-btn').innerText = "Deploying updates to code blocks...";
       
-      const base64Content = btoa(unescape(encodeURIComponent(finalMasterMarkdownOutput)));
-      const commitMsg = "style: automated token sync injection for all collections";
+      let updatedMarkdown = fullOriginalMarkdown;
+
+      // 1. Map Figma collection IDs straight to your master document's exact subheadings
+      const sectionMapping = {
+        "Tailwind Colors": "## Base\n\n```yaml\n" + (localGroupedYaml["Tailwind Colors"] || "") + "```",
+        "shadcn theme": "" // Handled below because it needs to be split between Light and Dark sections
+      };
+
+      // 2. SURGICAL INJECTION: Handle shadcn theme Modes splitting cleanly
+      // We parse the generated master block from the tokens and separate them by light/dark suffixes
+      if (localGroupedYaml["shadcn theme"]) {
+        const lines = localGroupedYaml["shadcn theme"].split('\n');
+        let lightLines = "";
+        let darkLines = "";
+        let neutralLines = ""; // For shared elements like background-body, destructive, etc.
+
+        lines.forEach(line => {
+          if (!line.trim()) return;
+          if (line.includes('-light')) {
+            lightLines += line + "\n";
+          } else if (line.includes('-dark')) {
+            darkLines += line + "\n";
+          } else {
+            // Shared properties like background-body or semantic statuses
+            if (line.startsWith('background-body')) {
+              // Application shell placement target
+              const bodyRegex = /(## Application Shell[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
+              updatedMarkdown = updatedMarkdown.replace(sectionRegex, `$1${line}\n$3`);
+            } else {
+              // Share equally among both semantic blocks
+              lightLines += line + '\n';
+              darkLines += line + '\n';
+            }
+          }
+        });
+
+        // Replace the block inside '## 1. Light Mode'
+        const lightRegex = /(## 1\. Light Mode[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
+        if (lightRegex.test(updatedMarkdown)) {
+          updatedMarkdown = updatedMarkdown.replace(lightRegex, `$1${lightLines}$3`);
+        }
+
+        // Replace the block inside '## 2. Dark Mode'
+        const darkRegex = /(## 2\. Dark Mode[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
+        if (darkRegex.test(updatedMarkdown)) {
+          updatedMarkdown = updatedMarkdown.replace(darkRegex, `$1${darkLines}$3`);
+        }
+      }
+
+      // 3. SURGICAL INJECTION: Handle Base Palette mapping
+      // Instead of wiping out your separate color subheadings (## Blue, ## Mint), we look for your main umbrella heading
+      if (localGroupedYaml["Tailwind Colors"]) {
+        // Find the complete text spectrum between '# Tailwind Color Palette' and '# shadcn Theme'
+        const paletteRegex = /(# Tailwind Color Palette[\s\S]*? Foundation colors used by the shadcn theme tokens\.\n\n)([\s\S]*?)(# shadcn Theme)/g;
+        
+        if (paletteRegex.test(updatedMarkdown)) {
+          // Generate a beautifully grouped palette string that mimics your documentation file layout
+          let groupedPaletteText = "";
+          const colorLines = localGroupedYaml["Tailwind Colors"].split('\n');
+          const colorGroups = {};
+
+          colorLines.forEach(line => {
+            if (!line.trim()) return;
+            const parts = line.split('/');
+            if (parts.length > 1) {
+              const groupName = parts[0].trim();
+              const formattedLine = line.replace(`${groupName}/`, ''); // clear parent prefix prefix
+              if (!colorGroups[groupName]) colorGroups[groupName] = [];
+              colorGroups[groupName].push(formattedLine);
+            }
+          });
+
+          for (const [groupName, linesList] of Object.entries(colorGroups)) {
+            // Capitalize the subheader (e.g. blue -> ## Blue)
+            const capitalizedHeader = groupName.charAt(0).toUpperCase() + groupName.slice(1);
+            groupedPaletteText += `## ${capitalizedHeader}\n\n\`\`\`yaml\n${linesList.join('\n')}\n\`\`\`\n\n`;
+          }
+
+          // Inject the clean groups right between the umbrella layout boundaries safely!
+          updatedMarkdown = updatedMarkdown.replace(paletteRegex, `$1${groupedPaletteText}$3`);
+        }
+      }
+
+      // Ship the final merged markdown back up to GitHub/HackMD lines securely
+      const base64Content = btoa(unescape(encodeURIComponent(updatedMarkdown)));
+      const commitMsg = "style: automated surgical token update for consolidated layout blocks";
 
       parent.postMessage({ 
         pluginMessage: { 
