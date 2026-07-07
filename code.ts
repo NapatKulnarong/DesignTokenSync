@@ -18,14 +18,14 @@ async function loadCollections() {
 loadCollections();
 
 figma.ui.onmessage = async (msg) => {
-    // 1. SAFE NATIVE FETCH FROM GITHUB
+    // 1. SAFE NATIVE FETCH FROM GITHUB (With fixed Basic Auth headers)
     if (msg.type === 'FETCH_FROM_GITHUB') {
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         try {
             const response = await fetch(url, {
                 method: 'GET',
                 headers: { 
-                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Authorization': 'Basic ' + figma.base64Encode(`${REPO_OWNER}:${GITHUB_TOKEN}`),
                     'Accept': 'application/vnd.github.v3+json'
                 }
             });
@@ -79,14 +79,14 @@ figma.ui.onmessage = async (msg) => {
         }
     }
 
-    // 3. SAFE NATIVE PUSH TO GITHUB
+    // 3. SAFE NATIVE PUSH TO GITHUB (With fixed Basic Auth headers)
     if (msg.type === 'PUSH_TO_GITHUB') {
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         try {
             const response = await fetch(url, {
                 method: 'PUT',
                 headers: { 
-                    'Authorization': `token ${GITHUB_TOKEN}`, 
+                    'Authorization': 'Basic ' + figma.base64Encode(`${REPO_OWNER}:${GITHUB_TOKEN}`),
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
