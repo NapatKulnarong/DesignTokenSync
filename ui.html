@@ -57,7 +57,6 @@
       return tokens;
     }
 
-    // Save token button handler
     document.getElementById('save-token-btn').onclick = () => {
       const token = document.getElementById('token-input').value.trim();
       if(!token) return alert("Please input a token string!");
@@ -77,6 +76,8 @@
       if (message.type === 'ERROR') {
         document.getElementById('changelog').innerHTML = `<span style='color:red;'>${message.message}</span>`;
         document.getElementById('compare-btn').disabled = false;
+        document.getElementById('apply-btn').disabled = false;
+        document.getElementById('apply-btn').innerText = "2. Apply Color Updates to HackMD.io";
         return;
       }
 
@@ -85,7 +86,6 @@
         fileSha = data.sha;
         fullOriginalMarkdown = decodeURIComponent(escape(atob(data.content)));
         remoteTokens = parseTokensFromMarkdown(fullOriginalMarkdown);
-        
         parent.postMessage({ pluginMessage: { type: 'EXTRACT_ALL_TOKENS' } }, '*');
         return;
       }
@@ -139,7 +139,7 @@
         });
 
         Object.keys(remoteTokens).forEach(remoteKey => {
-          const nonColorKeywords = ['logo', 'favicon', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'text-', 'font', 'lineHeight', 'component', 'width', 'height', 'padding', 'rounded'];
+          const nonColorKeywords = ['logo', 'favicon', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'text-', 'font', 'lineHeight', 'component', 'width', 'height', 'padding', 'rounded', 'usage', 'surface', 'textDecoration', 'position', 'behavior', 'collapsible', 'overflow'];
           if (nonColorKeywords.some(keyword => remoteKey.toLowerCase().includes(keyword))) return;
 
           if (!localTokenKeys.has(remoteKey)) {
@@ -156,6 +156,9 @@
       if (message.type === 'GITHUB_PUSH_SUCCESS') {
         document.getElementById('changelog').innerHTML = "<div style='color:#16a34a; font-weight:bold;'>🎉 SUCCESS! Colors updated inside HackMD.io template blocks securely!</div>";
         document.getElementById('apply-btn').style.display = 'none';
+        document.getElementById('apply-btn').disabled = false;
+        document.getElementById('apply-btn').innerText = "2. Apply Color Updates to HackMD.io";
+        return;
       }
     };
 
@@ -165,7 +168,7 @@
       
       let updatedMarkdown = fullOriginalMarkdown;
 
-      // 1. SURGICAL INJECTION: Split 'shadcn theme' collection into Light and Dark Mode sections
+      // 1. SURGICAL INJECTION: Split 'shadcn theme' into Light and Dark Mode blocks
       if (localGroupedYaml["shadcn theme"]) {
         const lines = localGroupedYaml["shadcn theme"].split('\n');
         let lightLines = "";
@@ -173,69 +176,58 @@
 
         lines.forEach(line => {
           if (!line.trim()) return;
-          
-          // Route tokens ending in -light to Light Mode, -dark to Dark Mode
-          if (line.includes('-light:')) {
-            // Clean up the "-light" suffix so it matches your clean document specs
-            lightLines += line.replace('-light:', ':') + "\n";
-          } else if (line.includes('-dark:')) {
-            // Clean up the "-dark" suffix so it matches your clean document specs
-            darkLines += line.replace('-dark:', ':') + "\n";
+          if (line.includes('-light')) {
+            lightLines += line.replace('-light', '') + "\n";
+          } else if (line.includes('-dark')) {
+            darkLines += line.replace('-dark', '') + "\n";
           } else {
-            // Put shared global variables (like background-body or status colors) in both blocks
-            lightLines += line + '\n';
-            darkLines += line + '\n';
+            if (line.startsWith('background-body')) {
+              const bodyRegex = /(## Application Shell[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
+              updatedMarkdown = updatedMarkdown.replace(bodyRegex, `$1${line}\n$3`);
+            } else {
+              lightLines += line + '\n';
+              darkLines += line + '\n';
+            }
           }
         });
 
-        // Inject directly into your existing Light Mode section block
-        const lightRegex = /(## 1\. Light Mode[\s\S]*?### Background[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
+        const lightRegex = /(## 1\. Light Mode[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
         if (lightRegex.test(updatedMarkdown)) {
           updatedMarkdown = updatedMarkdown.replace(lightRegex, `$1${lightLines}$3`);
         }
 
-        // Inject directly into your existing Dark Mode section block
-        const darkRegex = /(## 2\. Dark Mode[\s\S]*?### Background[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
+        const darkRegex = /(## 2\. Dark Mode[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
         if (darkRegex.test(updatedMarkdown)) {
           updatedMarkdown = updatedMarkdown.replace(darkRegex, `$1${darkLines}$3`);
         }
       }
 
-      // 2. SURGICAL INJECTION: Break down 'Tailwind Colors' collection into Base, Blue, Gray, etc.
+      // 2. SURGICAL INJECTION: Map 'Tailwind Colors' items into separate Palette fields
       if (localGroupedYaml["Tailwind Colors"]) {
         const colorLines = localGroupedYaml["Tailwind Colors"].split('\n');
         const colorGroups = {};
 
-        // Sort lines by their subgroup prefix (e.g., base/black -> base)
         colorLines.forEach(line => {
           if (!line.trim()) return;
           const parts = line.split('/');
           if (parts.length > 1) {
-            const groupName = parts[0].trim(); // 'base', 'blue', 'gray', etc.
-            
-            // Reconstruct the line to match your exact format: 'tailwind.blue.50: "#xxxxxx"'
-            const cleanTokenLine = `tailwind.${groupName}.${line.replace(`${groupName}/`, '')}`;
-            
+            const groupName = parts[0].trim();
+            const formattedLine = `tailwind.${groupName}.${line.replace(`${groupName}/`, '')}`;
             if (!colorGroups[groupName]) colorGroups[groupName] = [];
-            colorGroups[groupName].push(cleanTokenLine);
+            colorGroups[groupName].push(formattedLine);
           }
         });
 
-        // Loop through each group found (Base, Blue, Gray, Mint, etc.) and update its specific section
         for (const [groupName, linesList] of Object.entries(colorGroups)) {
-          // Capitalize the first letter to match your Markdown subheaders exactly (blue -> Blue)
           const capitalizedHeader = groupName.charAt(0).toUpperCase() + groupName.slice(1);
-          
-          // Target the exact block markdown combination dynamically
           const blockRegex = new RegExp(`(## ${capitalizedHeader}\\n\\n\`\`\`yaml\\n)([\\s\\S]*?)(\`\`\`)`, 'g');
           
           if (blockRegex.test(updatedMarkdown)) {
-            updatedMarkdown = updatedMarkdown.replace(paletteRegex, `$1${linesList.join('\n')}\n$3`);
+            updatedMarkdown = updatedMarkdown.replace(blockRegex, `$1${linesList.join('\n')}\n$3`);
           }
         }
       }
 
-      // Ship the final merged markdown back up to GitHub/HackMD lines securely
       const base64Content = btoa(unescape(encodeURIComponent(updatedMarkdown)));
       const commitMsg = "style: automated surgical token update for consolidated layout blocks";
 
