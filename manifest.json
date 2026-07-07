@@ -12,7 +12,8 @@
   "ui": "ui.html",
   "networkAccess": {
     "allowedDomains": [
-      "none"
-    ]
+      "https://api.github.com"
+    ],
+    "reasoning": "Sync design system tokens directly with HackMD and GitHub repository spec files." 
   }
 }

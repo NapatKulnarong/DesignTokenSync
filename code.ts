@@ -1,6 +1,6 @@
 figma.showUI(__html__, { width: 450, height: 550 });
 
-// CRITICAL SECURITY LINK CONFIGURATION (Handled safely in backend)
+// SECURITY DATA LINK CONFIGURATION
 const GITHUB_TOKEN = "ghp_YOUR_MASTER_TOKEN_HERE"; // Put YOUR Personal Access Token here
 const REPO_OWNER = "NapatKulnarong";
 const REPO_NAME = "DesignTokenSync";
@@ -18,28 +18,30 @@ async function loadCollections() {
 loadCollections();
 
 figma.ui.onmessage = async (msg) => {
-    // 1. FETCH ROUTINE FROM GITHUB
+    // 1. SAFE NATIVE FETCH FROM GITHUB
     if (msg.type === 'FETCH_FROM_GITHUB') {
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         try {
-            const response = await (figma as any).network.requestAsync({
-                url: url,
+            const response = await fetch(url, {
                 method: 'GET',
-                headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'User-Agent': 'Figma-Plugin' }
+                headers: { 
+                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
             });
 
             if (response.status !== 200) {
-                throw new Error(`GitHub returned status ${response.status}`);
+                throw new Error(`GitHub returned status code ${response.status}`);
             }
 
-            const data = JSON.parse(response.text);
+            const data = await response.json();
             figma.ui.postMessage({ type: 'GITHUB_FETCH_SUCCESS', payload: data });
         } catch (err) {
             figma.ui.postMessage({ type: 'ERROR', message: 'GitHub Fetch Failed: ' + String(err) });
         }
     }
 
-    // 2. EXTRACT FIGMA VARIABLES ROUTINE
+    // 2. FIGMA EXTRACTION LOOP
     if (msg.type === 'EXTRACT_TOKENS') {
         try {
             const variables = await figma.variables.getLocalVariablesAsync();
@@ -77,17 +79,15 @@ figma.ui.onmessage = async (msg) => {
         }
     }
 
-    // 3. PUSH ROUTINE TO GITHUB
+    // 3. SAFE NATIVE PUSH TO GITHUB
     if (msg.type === 'PUSH_TO_GITHUB') {
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         try {
-            const response = await (figma as any).network.requestAsync({
-                url: url,
+            const response = await fetch(url, {
                 method: 'PUT',
                 headers: { 
                     'Authorization': `token ${GITHUB_TOKEN}`, 
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'Figma-Plugin'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     message: msg.commitMessage,
@@ -98,9 +98,9 @@ figma.ui.onmessage = async (msg) => {
 
             if (response.status === 200 || response.status === 201) {
                 figma.ui.postMessage({ type: 'GITHUB_PUSH_SUCCESS' });
-                figma.notify('HackMD documentation sync completed!');
+                figma.notify('HackMD documentation sync completed successfully!');
             } else {
-                throw new Error(`GitHub rejected save with status ${response.status}`);
+                throw new Error(`GitHub rejected updates with status ${response.status}`);
             }
         } catch (err) {
             figma.ui.postMessage({ type: 'ERROR', message: 'GitHub Push Failed: ' + String(err) });
