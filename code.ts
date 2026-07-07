@@ -6,6 +6,15 @@ const REPO_OWNER = "NapatKulnarong";
 const REPO_NAME = "DesignTokenSync";
 const FILE_PATH = "DESIGN.md";
 
+// Tiny helper to convert strings to Uint8Array without needing TextEncoder types
+function stringToUint8Array(str: string): Uint8Array {
+    const arr = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) {
+        arr[i] = str.charCodeAt(i);
+    }
+    return arr;
+}
+
 async function loadCollections() {
     try {
         const collections = await figma.variables.getLocalVariableCollectionsAsync();
@@ -18,12 +27,12 @@ async function loadCollections() {
 loadCollections();
 
 figma.ui.onmessage = async (msg) => {
-    // 1. SAFE NATIVE FETCH FROM GITHUB (With fixed TextEncoder for byte assignment)
+    // 1. SAFE NATIVE FETCH FROM GITHUB (Using custom helper function)
     if (msg.type === 'FETCH_FROM_GITHUB') {
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         try {
             const credentialsStr = `${REPO_OWNER}:${GITHUB_TOKEN}`;
-            const encodedCredentials = figma.base64Encode(new TextEncoder().encode(credentialsStr));
+            const encodedCredentials = figma.base64Encode(stringToUint8Array(credentialsStr));
             
             const response = await fetch(url, {
                 method: 'GET',
@@ -82,12 +91,12 @@ figma.ui.onmessage = async (msg) => {
         }
     }
 
-    // 3. SAFE NATIVE PUSH TO GITHUB (With fixed TextEncoder for byte assignment)
+    // 3. SAFE NATIVE PUSH TO GITHUB (Using custom helper function)
     if (msg.type === 'PUSH_TO_GITHUB') {
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         try {
             const credentialsStr = `${REPO_OWNER}:${GITHUB_TOKEN}`;
-            const encodedCredentials = figma.base64Encode(new TextEncoder().encode(credentialsStr));
+            const encodedCredentials = figma.base64Encode(stringToUint8Array(credentialsStr));
 
             const response = await fetch(url, {
                 method: 'PUT',
