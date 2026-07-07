@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 16px;
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    button {
+      width: 100%;
+      background-color: #0048FF; /* Omise Electric Blue primary */
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    button:hover {
+      background-color: #003BD3;
+    }
+    textarea {
+      width: 100%;
+      height: 340px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-size: 12px;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: #fff;
+      resize: none;
+    }
+    .label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <button id="extract">Extract Design Tokens</button>
+  
+  <div class="label">Generated YAML / Markdown Output:</div>
+  <textarea id="output" placeholder="Click the button above to generate your tokens..."></textarea>
+
+  <script>
+    // 1. Helper function to turn Figma's 0-1 RGBA into clean uppercase Hex strings
+    function figmaRgbToHex(color) {
+      if (!color || color.r === undefined) return "unknown";
+      const toHex = (n) => {
+        const hex = Math.round(n * 255).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      };
+      return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`.toUpperCase();
+    }
+
+    // 2. Trigger the extraction when the user clicks our button
+    document.getElementById('extract').onclick = () => {
+      parent.postMessage({ pluginMessage: { type: 'EXTRACT_TOKENS' } }, '*');
+    };
+
+    // 3. Listen for the back-end (code.js) to send the token payload back
+    window.onmessage = (event) => {
+  const message = event.data.pluginMessage;
+  if (!message) return;
+
+  if (message.type === 'ERROR') {
+    document.getElementById('output').value = `❌ ERROR:\n${message.message}`;
+    document.getElementById('output').style.color = '#D92121';
+    return;
+  }
+  
+  if (message.type === 'TOKENS_EXTRACTED') {
+    document.getElementById('output').style.color = '#333333';
+    const tokens = message.payload;
+    let yamlOutput = "";
+
+    const grouped = {};
+    tokens.forEach(token => {
+      if (!grouped[token.collection]) {
+        grouped[token.collection] = [];
+      }
+      grouped[token.collection].push(token);
+    });
+
+    // Define how your Figma modes map to your design system suffixes
+    // Define how your Figma modes map to your design system suffixes
+    const modeMap = {
+      1: 'light',
+      2: 'dark'
+    };
+
+    for (const [collection, tokenList] of Object.entries(grouped)) {
+      yamlOutput += `## ${collection}\n\n\`\`\`yaml\n`;
+      
+      tokenList.forEach(token => {
+        // 1. FIX: Automatically skip any tracking configuration prefixed with "hide/"
+        if (token.name.startsWith('hide/')) {
+          return; 
+        }
+
+        const modeIds = Object.keys(token.values);
+        
+        if (modeIds.length === 1) {
+          // Single-mode tokens
+          yamlOutput += `${token.name}: "${token.values[modeIds[0]]}"\n`;
+        } else {
+          // 2. FIX: Check if the values in both modes are exactly identical (like the Tailwind palette)
+          const firstVal = token.values[modeIds[0]];
+          const allModesIdentical = modeIds.every(modeId => token.values[modeId] === firstVal);
+
+          if (allModesIdentical) {
+            // If the values don't change across modes, print it as a single static token without suffixes
+            yamlOutput += `${token.name}: "${firstVal}"\n`;
+          } else {
+            // Multi-mode semantic tokens that actually DO change get their proper suffixes
+            modeIds.forEach((modeId, index) => {
+              const modeSuffix = modeMap[index + 1] || `mode_${index + 1}`;
+              yamlOutput += `${token.name}-${modeSuffix}: "${token.values[modeId]}"\n`;
+            });
+          }
+        }
+      });
+      
+      yamlOutput += `\`\`\`\n\n`;
+    }
+    document.getElementById('output').value = yamlOutput;
+  }
+};
+  </script>
+</body>
+</html>
