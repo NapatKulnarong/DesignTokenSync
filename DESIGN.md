@@ -190,33 +190,33 @@ tailwind.green.950: "#052E16"
 ## Orange
 
 ```yaml
-tailwind.orange.50: "#FFF7ED"
-tailwind.orange.100: "#FFEDD5"
-tailwind.orange.200: "#FED7AA"
-tailwind.orange.300: "#FDBA74"
-tailwind.orange.400: "#FB923C"
-tailwind.orange.500: "#F97316"
-tailwind.orange.600: "#EA580C"
 tailwind.orange.700: "#C2410C"
+tailwind.orange.400: "#FB923C"
 tailwind.orange.800: "#9A3412"
+tailwind.orange.500: "#F97316"
+tailwind.orange.300: "#FDBA74"
+tailwind.orange.600: "#EA580C"
+tailwind.orange.200: "#FED7AA"
 tailwind.orange.900: "#7C2D12"
 tailwind.orange.950: "#431407"
+tailwind.orange.100: "#FFEDD5"
+tailwind.orange.50: "#FFF7ED"
 ```
 
 ## Brown
 
 ```yaml
-tailwind.brown.50: "#FCF6F1"
-tailwind.brown.100: "#FFDFD0"
-tailwind.brown.200: "#E6CAAF"
-tailwind.brown.300: "#CEAC8D"
-tailwind.brown.400: "#B7916D"
-tailwind.brown.500: "#926F4E"
-tailwind.brown.600: "#6B4F34"
-tailwind.brown.700: "#58402A"
-tailwind.brown.800: "#3A2919"
 tailwind.brown.900: "#281C11"
+tailwind.brown.800: "#3A2919"
+tailwind.brown.600: "#6B4F34"
+tailwind.brown.500: "#926F4E"
+tailwind.brown.700: "#58402A"
+tailwind.brown.400: "#B7916D"
+tailwind.brown.200: "#E6CAAF"
 tailwind.brown.950: "#110C07"
+tailwind.brown.100: "#EFDFD0"
+tailwind.brown.300: "#CEAC8D"
+tailwind.brown.50: "#FCF6F1"
 ```
 
 # shadcn Theme
@@ -238,11 +238,8 @@ background-body: "{tailwind.base.black}"
 Use `background-light` as the Main Content background in Light Mode. The application shell behind it uses `background-body`, while `inverse-light` is reserved for dark content sections that need strong contrast.
 
 ```yaml
-background-light: "{tailwind.base.white}"
-inverse-light: "{tailwind.base.black}"
-white: "{tailwind.base.white}"
-black: "{tailwind.base.black}"
-transparent: "{tailwind.base.white}/0%"
+background: "{base.white}"
+inverse: "{base.black}"
 ```
 
 ### Surface
@@ -250,11 +247,10 @@ transparent: "{tailwind.base.white}/0%"
 Use surface tokens for containers layered above the page background. `card-light` is the default card surface, `card-low-light` adds subtle separation, and `card-high-light` creates stronger separation for elevated or grouped content.
 
 ```yaml
-card-light: "{tailwind.base.white}"
-card-low-light: "#F9FAFC"
-card-high-light: "{colors.muted-light}"
-popover-light: "{tailwind.base.white}"
-muted-light: "{tailwind.gray.50}"
+card: "{base.white}"
+card-low: "#F9FAFC"
+popover: "{base.white}"
+muted: "{gray.50}"
 ```
 
 ### Foreground
@@ -262,12 +258,9 @@ muted-light: "{tailwind.gray.50}"
 Use foreground tokens to define text and icon hierarchy. `foreground-light` is for primary content, `subtle-foreground-light` for secondary content, and `muted-foreground-light` for placeholders, disabled states, timestamps, and low-emphasis metadata.
 
 ```yaml
-foreground-light: "{tailwind.base.black}"
-subtle-foreground-light: "{tailwind.gray.500}"
-muted-foreground-light: "{tailwind.gray.400}"
-inverse-foreground-light: "{tailwind.base.white}"
-card-foreground-light: "{colors.foreground-light}"
-popover-foreground-light: "{colors.foreground-light}"
+foreground: "{base.black}"
+muted-foreground: "{gray.500}"
+inverse-foreground: "{base.white}"
 ```
 
 ### Brand & Accent
@@ -275,18 +268,16 @@ popover-foreground-light: "{colors.foreground-light}"
 Use brand tokens for actions, navigation states, and key moments. In Light Mode, `primary-light` is Electric Blue for main CTAs, links, and active states, while `accent-light` is Mint for supporting highlights and secondary emphasis.
 
 ```yaml
-primary-light: "{tailwind.blue.500}"
-primary-foreground-light: "{tailwind.blue.50}"
-primary-subtle-light: "{tailwind.blue.500}/10%"
-primary-outline-light: "{tailwind.blue.500}/50%"
-secondary-light: "{tailwind.gray.800}"
-secondary-foreground-light: "{tailwind.gray.300}"
-secondary-subtle-light: "{tailwind.gray.100}"
-secondary-outline-light: "{tailwind.gray.800}/50%"
-accent-light: "{tailwind.mint.300}"
-accent-foreground-light: "{tailwind.mint.800}"
-accent-subtle-light: "{tailwind.mint.300}/20%"
-accent-outline-light: "{tailwind.mint.300}/50%"
+primary: "{blue.500}"
+primary-foreground: "{blue.50}"
+primary-subtle: "{opacity.primary.10}"
+primary-outline: "{opacity.primary.70}"
+secondary: "{gray.800}"
+secondary-outline: "{opacity.secondary.70}"
+accent: "{mint.300}"
+accent-foreground: "{mint.800}"
+accent-subtle: "{opacity.accent.40}"
+accent-outline: "{opacity.accent.70}"
 ```
 
 ### Semantic
@@ -294,25 +285,13 @@ accent-outline-light: "{tailwind.mint.300}/50%"
 Use semantic tokens only when a color communicates status, priority, or meaning. These tokens should not replace neutral hierarchy unless the UI needs to signal danger, warning, success, categorization, or supporting status.
 
 ```yaml
-destructive: "{tailwind.red.500}"
-destructive-foreground: "{tailwind.red.50}"
-destructive-subtle: "{tailwind.red.500}/20%"
-warning: "{tailwind.yellow.400}"
-warning-foreground: "{tailwind.yellow.900}"
-warning-subtle-foreground: "{tailwind.yellow.600}"
-warning-subtle: "{tailwind.yellow.400}/20%"
-success: "{tailwind.green.500}"
-success-foreground: "{tailwind.green.50}"
-success-subtle: "{tailwind.green.500}/20%"
-purple: "{tailwind.purple.500}"
-purple-foreground: "{tailwind.purple.50}"
-purple-subtle: "{tailwind.purple.500}/20%"
-orange: "{tailwind.orange.500}"
-orange-foreground: "{tailwind.orange.50}"
-orange-subtle: "{tailwind.orange.500}/20%"
-brown-light: "{tailwind.brown.700}"
-brown-foreground: "{tailwind.brown.50}"
-brown-subtle-light: "{tailwind.brown.700}/20%"
+destructive-subtle: "{opacity.destructive.20}"
+warning-subtle-foreground: "{yellow.600}"
+success-subtle: "{opacity.success.20}"
+purple-subtle: "{opacity.purple.20}"
+brown: "{brown.700}"
+brown-subtle: "{opacity.brown.20}"
+brown-outline: "{opacity.brown.70}"
 ```
 
 ### Border & Ring
@@ -320,15 +299,9 @@ brown-subtle-light: "{tailwind.brown.700}/20%"
 Use border and ring tokens for structure, input boundaries, focus states, and interactive feedback. Borders should stay neutral and low-emphasis, while rings should be reserved for focus, selection, or active interaction states.
 
 ```yaml
-border-light: "{tailwind.gray.200}"
-input-light: "{tailwind.gray.200}"
-ring-light: "{tailwind.blue.400}"
-destructive-outline: "{tailwind.red.500}/50%"
-warning-outline: "{tailwind.yellow.400}/50%"
-success-outline: "{tailwind.green.500}/50%"
-purple-outline: "{tailwind.purple.500}/50%"
-orange-outline: "{tailwind.orange.500}/50%"
-brown-outline-light: "{tailwind.brown.700}/50%"
+border: "{gray.100}"
+input: "{gray.300}"
+brown-outline: "{opacity.brown.70}"
 ```
 
 ### Sidebar
@@ -370,11 +343,8 @@ appbar-border: "{tailwind.base.black}"
 Use `background-dark` as the Main Content background in Dark Mode. The application shell behind it continues to use `background-body`, while `inverse-dark` is reserved for light content sections that need strong contrast.
 
 ```yaml
-background-dark: "{tailwind.base.black}"
-inverse-dark: "{tailwind.base.white}"
-white: "{tailwind.base.white}"
-black: "{tailwind.base.black}"
-transparent: "{tailwind.base.white}/0%"
+background: "{base.black}"
+inverse: "{base.white}"
 ```
 
 ### Surface
@@ -382,11 +352,10 @@ transparent: "{tailwind.base.white}/0%"
 Use surface tokens to create depth across dark containers. `card-dark` is the default card surface, `card-low-dark` adds subtle separation, and `card-high-dark` creates stronger contrast for elevated or grouped content.
 
 ```yaml
-card-dark: "{tailwind.gray.900}"
-card-low-dark: "#121723"
-card-high-dark: "#121723"
-popover-dark: "{tailwind.base.black}"
-muted-dark: "#121723"
+card: "{gray.900}"
+card-low: "#121723"
+popover: "{base.black}"
+muted: "#121723"
 ```
 
 ### Foreground
@@ -394,12 +363,9 @@ muted-dark: "#121723"
 Use foreground tokens to define text and icon hierarchy on dark surfaces. `foreground-dark` is for primary content, `subtle-foreground-dark` for secondary content, and `muted-foreground-dark` for placeholders, disabled states, timestamps, and low-emphasis metadata.
 
 ```yaml
-foreground-dark: "{tailwind.gray.200}"
-subtle-foreground-dark: "{tailwind.gray.400}"
-muted-foreground-dark: "{tailwind.gray.500}"
-inverse-foreground-dark: "{tailwind.base.black}"
-card-foreground-dark: "{colors.foreground-dark}"
-popover-foreground-dark: "{colors.foreground-dark}"
+foreground: "{base.white}"
+muted-foreground: "{gray.400}"
+inverse-foreground: "{base.black}"
 ```
 
 ### Brand & Accent
@@ -407,18 +373,16 @@ popover-foreground-dark: "{colors.foreground-dark}"
 Use brand tokens for actions, navigation states, and key moments. In Dark Mode, `primary-dark` is Mint for main CTAs, links, and active states, while `accent-dark` is Electric Blue for supporting highlights and secondary emphasis.
 
 ```yaml
-primary-dark: "{tailwind.mint.300}"
-primary-foreground-dark: "{tailwind.mint.600}"
-primary-subtle-dark: "{tailwind.mint.300}/10%"
-primary-outline-dark: "{tailwind.mint.300}/50%"
-secondary-dark: "{tailwind.gray.600}"
-secondary-foreground-dark: "{tailwind.gray.100}"
-secondary-subtle-dark: "{tailwind.gray.800}"
-secondary-outline-dark: "{tailwind.gray.800}/50%"
-accent-dark: "{tailwind.blue.500}"
-accent-foreground-dark: "{tailwind.blue.50}"
-accent-subtle-dark: "{tailwind.blue.500}/20%"
-accent-outline-dark: "{tailwind.blue.500}/50%"
+primary: "{mint.300}"
+primary-foreground: "{mint.800}"
+primary-subtle: "{opacity.accent.30}"
+primary-outline: "{opacity.accent.70}"
+secondary: "{gray.600}"
+secondary-outline: "{opacity.gray.300.95}"
+accent: "{blue.500}"
+accent-foreground: "{blue.50}"
+accent-subtle: "{opacity.primary.40}"
+accent-outline: "{opacity.primary.70}"
 ```
 
 ### Semantic
@@ -426,25 +390,13 @@ accent-outline-dark: "{tailwind.blue.500}/50%"
 Use semantic tokens only when a color communicates status, priority, or meaning. These shared semantic tokens remain consistent across modes and should be used for danger, warning, success, categorization, or supporting status.
 
 ```yaml
-destructive: "{tailwind.red.500}"
-destructive-foreground: "{tailwind.red.50}"
-destructive-subtle: "{tailwind.red.500}/20%"
-warning: "{tailwind.yellow.400}"
-warning-foreground: "{tailwind.yellow.900}"
-warning-subtle-foreground: "{tailwind.yellow.600}"
-warning-subtle: "{tailwind.yellow.400}/20%"
-success: "{tailwind.green.500}"
-success-foreground: "{tailwind.green.50}"
-success-subtle: "{tailwind.green.500}/20%"
-purple: "{tailwind.purple.500}"
-purple-foreground: "{tailwind.purple.50}"
-purple-subtle: "{tailwind.purple.500}/20%"
-orange: "{tailwind.orange.500}"
-orange-foreground: "{tailwind.orange.50}"
-orange-subtle: "{tailwind.orange.500}/20%"
-brown-dark: "{tailwind.brown.500}"
-brown-foreground: "{tailwind.brown.50}"
-brown-subtle-dark: "{tailwind.brown.700}/40%"
+destructive-subtle: "{opacity.destructive.30}"
+warning-subtle-foreground: "{yellow.500}"
+success-subtle: "{opacity.success.30}"
+purple-subtle: "{opacity.purple.40}"
+brown: "{brown.500}"
+brown-subtle: "{opacity.brown.60}"
+brown-outline: "{opacity.brown.95}"
 ```
 
 ### Border & Ring
@@ -452,15 +404,9 @@ brown-subtle-dark: "{tailwind.brown.700}/40%"
 Use border and ring tokens for structure, input boundaries, focus states, and interactive feedback. Dark Mode borders should preserve separation without overpowering the surface, while rings remain reserved for focus, selection, or active interaction states.
 
 ```yaml
-border-dark: "{tailwind.gray.700}"
-input-dark: "{tailwind.gray.700}"
-ring-dark: "{tailwind.blue.400}"
-destructive-outline: "{tailwind.red.500}/50%"
-warning-outline: "{tailwind.yellow.400}/50%"
-success-outline: "{tailwind.green.500}/50%"
-purple-outline: "{tailwind.purple.500}/50%"
-orange-outline: "{tailwind.orange.500}/50%"
-brown-outline-dark: "{tailwind.brown.700}/80%"
+border: "{gray.700}"
+input: "{gray.700}"
+brown-outline: "{opacity.brown.95}"
 ```
 
 ### Sidebar
