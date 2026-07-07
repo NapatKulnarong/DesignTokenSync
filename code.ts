@@ -1,12 +1,11 @@
 figma.showUI(__html__, { width: 450, height: 550 });
 
 // SECURITY DATA LINK CONFIGURATION
-const GITHUB_TOKEN = "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"; 
+const GITHUB_TOKEN = "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"; 
 const REPO_OWNER = "NapatKulnarong";
 const REPO_NAME = "DesignTokenSync";
 const FILE_PATH = "DESIGN.md";
 
-// Tiny helper to convert strings to Uint8Array without needing TextEncoder types
 function stringToUint8Array(str: string): Uint8Array {
     const arr = new Uint8Array(str.length);
     for (let i = 0; i < str.length; i++) {
@@ -15,19 +14,7 @@ function stringToUint8Array(str: string): Uint8Array {
     return arr;
 }
 
-async function loadCollections() {
-    try {
-        const collections = await figma.variables.getLocalVariableCollectionsAsync();
-        const collectionNames = collections.map(c => ({ id: c.id, name: c.name }));
-        figma.ui.postMessage({ type: 'COLLECTIONS_LOADED', payload: collectionNames });
-    } catch (err) {
-        figma.ui.postMessage({ type: 'ERROR', message: 'Failed to load collections: ' + String(err) });
-    }
-}
-loadCollections();
-
 figma.ui.onmessage = async (msg) => {
-    // 1. SAFE NATIVE FETCH FROM GITHUB (Using custom helper function)
     if (msg.type === 'FETCH_FROM_GITHUB') {
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         try {
@@ -53,16 +40,15 @@ figma.ui.onmessage = async (msg) => {
         }
     }
 
-    // 2. FIGMA EXTRACTION LOOP
-    if (msg.type === 'EXTRACT_TOKENS') {
+    if (msg.type === 'EXTRACT_ALL_TOKENS') {
         try {
             const variables = await figma.variables.getLocalVariablesAsync();
             const collections = await figma.variables.getLocalVariableCollectionsAsync();
-            const targetCollectionId = msg.collectionId;
 
             const extractedTokens = [];
             for (const variable of variables) {
-                if (variable.resolvedType === 'COLOR' && variable.variableCollectionId === targetCollectionId) {
+                // EXTRACT ALL COLOR TOKENS REGARDLESS OF THEIR COLLECTION ID
+                if (variable.resolvedType === 'COLOR') {
                     const collection = collections.find(c => c.id === variable.variableCollectionId);
                     const collectionName = collection ? collection.name : "unknown";
                     
@@ -91,7 +77,6 @@ figma.ui.onmessage = async (msg) => {
         }
     }
 
-    // 3. SAFE NATIVE PUSH TO GITHUB (Using custom helper function)
     if (msg.type === 'PUSH_TO_GITHUB') {
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         try {

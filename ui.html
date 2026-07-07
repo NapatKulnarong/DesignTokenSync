@@ -4,37 +4,33 @@
   <meta charset="utf-8">
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 16px; margin: 0; background-color: #f8fafc; color: #0f172a; }
-    select, button { width: 100%; padding: 10px; border-radius: 6px; font-size: 14px; margin-bottom: 12px; box-sizing: border-box; }
-    select { border: 1px solid #cbd5e1; background: white; }
-    button { background-color: #0048FF; color: white; border: none; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button { width: 100%; padding: 12px; border-radius: 6px; font-size: 14px; margin-bottom: 12px; box-sizing: border-box; background-color: #0048FF; color: white; border: none; font-weight: 600; cursor: pointer; transition: background 0.2s; }
     button:hover { background-color: #003BD3; }
     button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
     #apply-btn { background-color: #16a34a; display: none; }
     #apply-btn:hover { background-color: #15803d; }
-    .change-log-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; height: 180px; overflow-y: auto; font-size: 12px; margin-bottom: 12px; }
+    .change-log-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; height: 280px; overflow-y: auto; font-size: 12px; margin-bottom: 12px; }
     .log-item { margin-bottom: 4px; font-family: monospace; }
     .added { color: #16a34a; font-weight: 600; }
     .modified { color: #d97706; font-weight: 600; }
+    .deleted { color: #dc2626; font-weight: 600; }
     .label { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px; }
   </style>
 </head>
 <body>
 
-  <div class="label">1. Choose Target Token Collection:</div>
-  <select id="collection-select"><option>Loading collections...</option></select>
-
-  <button id="compare-btn">2. Fetch & Compare with HackMD</button>
+  <button id="compare-btn">1. Fetch & Compare All Collections with HackMD</button>
   
   <div class="label">Review System Modifications:</div>
-  <div id="changelog" class="change-log-box">Select a collection and run comparison check.</div>
+  <div id="changelog" class="change-log-box">Click above to run a complete workspace validation scan...</div>
   
-  <button id="apply-btn">3. Apply Changes to HackMD.io</button>
+  <button id="apply-btn">2. Apply All Changes to HackMD.io</button>
 
   <script>
     let remoteTokens = {};
     let fullOriginalMarkdown = "";
     let fileSha = "";
-    let generatedYamlBlock = "";
+    let finalMasterMarkdownOutput = "";
 
     function parseTokensFromMarkdown(mdContent) {
       const tokens = {};
@@ -53,7 +49,6 @@
       return tokens;
     }
 
-    // Trigger Step 1: Tell backend to fetch from GitHub securely
     document.getElementById('compare-btn').onclick = () => {
       document.getElementById('compare-btn').disabled = true;
       document.getElementById('changelog').innerText = "Fetching source data via secure backend bridge...";
@@ -64,29 +59,20 @@
       const message = event.data.pluginMessage;
       if (!message) return;
 
-      if (message.type === 'COLLECTIONS_LOADED') {
-        const select = document.getElementById('collection-select');
-        select.innerHTML = message.payload.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-        return;
-      }
-
       if (message.type === 'ERROR') {
         document.getElementById('changelog').innerHTML = `<span style='color:red;'>${message.message}</span>`;
         document.getElementById('compare-btn').disabled = false;
-        document.getElementById('apply-btn').disabled = false;
         return;
       }
 
-      // Handle raw data incoming back from safe backend thread extraction
       if (message.type === 'GITHUB_FETCH_SUCCESS') {
         const data = message.payload;
         fileSha = data.sha;
         fullOriginalMarkdown = decodeURIComponent(escape(atob(data.content)));
         remoteTokens = parseTokensFromMarkdown(fullOriginalMarkdown);
         
-        // Data is ready, now kick off step 2 (Compare tokens)
-        const collectionId = document.getElementById('collection-select').value;
-        parent.postMessage({ pluginMessage: { type: 'EXTRACT_TOKENS', collectionId } }, '*');
+        // Trigger multi-collection master scan
+        parent.postMessage({ pluginMessage: { type: 'EXTRACT_ALL_TOKENS' } }, '*');
         return;
       }
 
@@ -96,74 +82,81 @@
         let localTokenKeys = new Set();
         const modeMap = { 1: 'light', 2: 'dark' };
         
-        generatedYamlBlock = "";
-
+        // Group everything by collection dynamically
+        const grouped = {};
         tokens.forEach(token => {
-          const modeIds = Object.keys(token.values);
-          const checkDiff = (key, val) => {
-            localTokenKeys.add(key);
-            if (remoteTokens[key] === undefined) {
-              logHTML += `<div class="log-item added">[ADDED] ${key}: "${val}"</div>`;
-            } else if (remoteTokens[key] !== val) {
-              logHTML += `<div class="log-item modified">[MODIFIED] ${key}: "${remoteTokens[key]}" ➔ "${val}"</div>`;
-            }
-          };
+          if (token.name.startsWith('hide/')) return;
+          if (!grouped[token.collection]) grouped[token.collection] = [];
+          grouped[token.collection].push(token);
+        });
 
-          if (modeIds.length === 1) {
-            const val = token.values[modeIds[0]];
-            generatedYamlBlock += `${token.name}: "${val}"\n`;
-            checkDiff(token.name, val);
-          } else {
-            const firstVal = token.values[modeIds[0]];
-            const allModesIdentical = modeIds.every(mId => token.values[mId] === firstVal);
+        finalMasterMarkdownOutput = "";
 
-            if (allModesIdentical) {
-              generatedYamlBlock += `${token.name}: "${firstVal}"\n`;
-              checkDiff(token.name, firstVal);
+        // Build the complete merged markdown string
+        for (const [collection, tokenList] of Object.entries(grouped)) {
+          finalMasterMarkdownOutput += `## ${collection}\n\n\`\`\`yaml\n`;
+          
+          tokenList.forEach(token => {
+            const modeIds = Object.keys(token.values);
+            const checkDiff = (key, val) => {
+              localTokenKeys.add(key);
+              if (remoteTokens[key] === undefined) {
+                logHTML += `<div class="log-item added">[ADDED] ${key}: "${val}"</div>`;
+              } else if (remoteTokens[key] !== val) {
+                logHTML += `<div class="log-item modified">[MODIFIED] ${key}: "${remoteTokens[key]}" ➔ "${val}"</div>`;
+              }
+            };
+
+            if (modeIds.length === 1) {
+              const val = token.values[modeIds[0]];
+              finalMasterMarkdownOutput += `${token.name}: "${val}"\n`;
+              checkDiff(token.name, val);
             } else {
-              modeIds.forEach((modeId, index) => {
-                const modeSuffix = modeMap[index + 1] || `mode_${index + 1}`;
-                const keyName = `${token.name}-${modeSuffix}`;
-                const val = token.values[modeId];
-                generatedYamlBlock += `${keyName}: "${val}"\n`;
-                checkDiff(keyName, val);
-              });
+              const firstVal = token.values[modeIds[0]];
+              const allModesIdentical = modeIds.every(mId => token.values[mId] === firstVal);
+
+              if (allModesIdentical) {
+                finalMasterMarkdownOutput += `${token.name}: "${firstVal}"\n`;
+                checkDiff(token.name, firstVal);
+              } else {
+                modeIds.forEach((modeId, index) => {
+                  const modeSuffix = modeMap[index + 1] || `mode_${index + 1}`;
+                  const keyName = `${token.name}-${modeSuffix}`;
+                  const val = token.values[modeId];
+                  finalMasterMarkdownOutput += `${keyName}: "${val}"\n`;
+                  checkDiff(keyName, val);
+                });
+              }
             }
+          });
+          finalMasterMarkdownOutput += `\`\`\`\n\n`;
+        }
+
+        // Catch true deletions across the entire ecosystem safely
+        Object.keys(remoteTokens).forEach(remoteKey => {
+          if (!localTokenKeys.has(remoteKey)) {
+            logHTML += `<div class="log-item deleted">[REMOVED FROM FIGMA] ${remoteKey}</div>`;
           }
         });
 
-        document.getElementById('changelog').innerHTML = logHTML || `<div style="color: #64748b;">✓ No changes detected. Figma matches HackMD perfectly.</div>`;
+        document.getElementById('changelog').innerHTML = logHTML || `<div style="color: #64748b;">✓ No changes detected. All collections match HackMD perfectly.</div>`;
         document.getElementById('compare-btn').disabled = false;
         document.getElementById('apply-btn').style.display = logHTML ? 'block' : 'none';
         return;
       }
 
       if (message.type === 'GITHUB_PUSH_SUCCESS') {
-        document.getElementById('changelog').innerHTML = "<div style='color:#16a34a; font-weight:bold;'>🎉 SUCCESS! HackMD has been successfully updated live!</div>";
+        document.getElementById('changelog').innerHTML = "<div style='color:#16a34a; font-weight:bold;'>🎉 SUCCESS! All collections synced to HackMD!</div>";
         document.getElementById('apply-btn').style.display = 'none';
-        document.getElementById('apply-btn').disabled = false;
       }
     };
 
-    // Trigger Step 3: Tell backend to push data to GitHub securely
     document.getElementById('apply-btn').onclick = () => {
       document.getElementById('apply-btn').disabled = true;
       document.getElementById('apply-btn').innerText = "Deploying live updates to cloud thread...";
       
-      const select = document.getElementById('collection-select');
-      const selectedCollectionName = select.options[select.selectedIndex].text;
-      
-      const sectionRegex = new RegExp(`(## ${selectedCollectionName}\\n\\n\`\`\`yaml\\n)([\\s\\S]*?)(\`\`\`)`, 'g');
-      let updatedMarkdown = fullOriginalMarkdown;
-      
-      if (sectionRegex.test(fullOriginalMarkdown)) {
-        updatedMarkdown = fullOriginalMarkdown.replace(sectionRegex, `$1${generatedYamlBlock}$3`);
-      } else {
-        updatedMarkdown += `\n\n## ${selectedCollectionName}\n\n\`\`\`yaml\n${generatedYamlBlock}\`\`\n`;
-      }
-
-      const base64Content = btoa(unescape(encodeURIComponent(updatedMarkdown)));
-      const commitMsg = `style: automated token sync injection for collection [${selectedCollectionName}]`;
+      const base64Content = btoa(unescape(encodeURIComponent(finalMasterMarkdownOutput)));
+      const commitMsg = "style: automated token sync injection for all collections";
 
       parent.postMessage({ 
         pluginMessage: { 
