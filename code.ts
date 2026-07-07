@@ -1,45 +1,50 @@
 figma.showUI(__html__, { width: 450, height: 550 });
 
-// SECURITY DATA LINK CONFIGURATION
-const GITHUB_TOKEN = "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"; 
 const REPO_OWNER = "NapatKulnarong";
 const REPO_NAME = "DesignTokenSync";
 const FILE_PATH = "DESIGN.md";
 
-function stringToUint8Array(str: string): Uint8Array {
-    const arr = new Uint8Array(str.length);
-    for (let i = 0; i < str.length; i++) {
-        arr[i] = str.charCodeAt(i);
-    }
-    return arr;
-}
-
 figma.ui.onmessage = async (msg) => {
+    // Save token securely when submitted from UI
+    if (msg.type === 'SAVE_TOKEN') {
+        await figma.clientStorage.setAsync('gh_token', msg.token);
+        figma.notify("Token saved securely to local storage!");
+        return;
+      }
+
+    // 1. FETCH FROM GITHUB
     if (msg.type === 'FETCH_FROM_GITHUB') {
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         try {
-            const credentialsStr = `${REPO_OWNER}:${GITHUB_TOKEN}`;
-            const encodedCredentials = figma.base64Encode(stringToUint8Array(credentialsStr));
-            
+            // Pull token from secure local storage dynamically
+            const secureToken = await figma.clientStorage.getAsync('gh_token');
+            if (!secureToken) {
+                throw new Error("Missing Token! Please enter your GitHub PAT in the input box below.");
+            }
+
             const response = await fetch(url, {
                 method: 'GET',
                 headers: { 
-                    'Authorization': 'Basic ' + encodedCredentials,
-                    'Accept': 'application/vnd.github.v3+json'
+                    'Authorization': `Bearer ${secureToken}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'User-Agent': 'Figma-Token-Sync-Plugin'
                 }
             });
 
-            if (response.status !== 200) {
+            if (response.status === 401) {
+                throw new Error("401 Unauthorized: The token stored in Figma is invalid or expired.");
+            } else if (response.status !== 200) {
                 throw new Error(`GitHub returned status code ${response.status}`);
             }
 
             const data = await response.json();
             figma.ui.postMessage({ type: 'GITHUB_FETCH_SUCCESS', payload: data });
         } catch (err) {
-            figma.ui.postMessage({ type: 'ERROR', message: 'GitHub Fetch Failed: ' + String(err) });
+            figma.ui.postMessage({ type: 'ERROR', message: String(err) });
         }
     }
 
+    // 2. EXTRACT ALL COLLECTIONS COMBINED
     if (msg.type === 'EXTRACT_ALL_TOKENS') {
         try {
             const variables = await figma.variables.getLocalVariablesAsync();
@@ -47,7 +52,6 @@ figma.ui.onmessage = async (msg) => {
 
             const extractedTokens = [];
             for (const variable of variables) {
-                // EXTRACT ALL COLOR TOKENS REGARDLESS OF THEIR COLLECTION ID
                 if (variable.resolvedType === 'COLOR') {
                     const collection = collections.find(c => c.id === variable.variableCollectionId);
                     const collectionName = collection ? collection.name : "unknown";
@@ -77,17 +81,18 @@ figma.ui.onmessage = async (msg) => {
         }
     }
 
+    // 3. PUSH TO GITHUB
     if (msg.type === 'PUSH_TO_GITHUB') {
         const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         try {
-            const credentialsStr = `${REPO_OWNER}:${GITHUB_TOKEN}`;
-            const encodedCredentials = figma.base64Encode(stringToUint8Array(credentialsStr));
-
+            const secureToken = await figma.clientStorage.getAsync('gh_token');
             const response = await fetch(url, {
                 method: 'PUT',
                 headers: { 
-                    'Authorization': 'Basic ' + encodedCredentials,
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${secureToken}`, 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json',
+                    'User-Agent': 'Figma-Token-Sync-Plugin'
                 },
                 body: JSON.stringify({
                     message: msg.commitMessage,

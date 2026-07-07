@@ -4,20 +4,28 @@
   <meta charset="utf-8">
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 16px; margin: 0; background-color: #f8fafc; color: #0f172a; }
+    input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px; margin-bottom: 12px; box-sizing: border-box; }
     button { width: 100%; padding: 12px; border-radius: 6px; font-size: 14px; margin-bottom: 12px; box-sizing: border-box; background-color: #0048FF; color: white; border: none; font-weight: 600; cursor: pointer; transition: background 0.2s; }
     button:hover { background-color: #003BD3; }
     button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
     #apply-btn { background-color: #16a34a; display: none; }
     #apply-btn:hover { background-color: #15803d; }
-    .change-log-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; height: 280px; overflow-y: auto; font-size: 12px; margin-bottom: 12px; }
+    .change-log-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; height: 220px; overflow-y: auto; font-size: 12px; margin-bottom: 12px; }
     .log-item { margin-bottom: 4px; font-family: monospace; }
     .added { color: #16a34a; font-weight: 600; }
     .modified { color: #d97706; font-weight: 600; }
     .deleted { color: #dc2626; font-weight: 600; }
     .label { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+    .token-section { background: #f1f5f9; padding: 10px; border-radius: 6px; margin-bottom: 12px; }
   </style>
 </head>
 <body>
+
+  <div class="token-section">
+    <div class="label">Config: Secure GitHub PAT Token (ghp_...)</div>
+    <input type="password" id="token-input" placeholder="Paste fresh ghp_ token here...">
+    <button id="save-token-btn" style="background:#475569; padding:6px; font-size:12px; margin:0;">Save Token Locally</button>
+  </div>
 
   <button id="compare-btn">1. Fetch & Compare All Collections with HackMD</button>
   
@@ -30,7 +38,7 @@
     let remoteTokens = {};
     let fullOriginalMarkdown = "";
     let fileSha = "";
-    let localGroupedYaml = {}; // Stores generated tokens mapped by collection name
+    let localGroupedYaml = {};
 
     function parseTokensFromMarkdown(mdContent) {
       const tokens = {};
@@ -48,6 +56,13 @@
       }
       return tokens;
     }
+
+    // Save token button handler
+    document.getElementById('save-token-btn').onclick = () => {
+      const token = document.getElementById('token-input').value.trim();
+      if(!token) return alert("Please input a token string!");
+      parent.postMessage({ pluginMessage: { type: 'SAVE_TOKEN', token } }, '*');
+    };
 
     document.getElementById('compare-btn').onclick = () => {
       document.getElementById('compare-btn').disabled = true;
@@ -123,9 +138,7 @@
           }
         });
 
-        // Smart cleanup filter: Only flag true token deletions if it was an active color token path
         Object.keys(remoteTokens).forEach(remoteKey => {
-          // If the key is a brand asset logo, typo token, or component markup keyword, ignore it
           const nonColorKeywords = ['logo', 'favicon', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'text-', 'font', 'lineHeight', 'component', 'width', 'height', 'padding', 'rounded'];
           if (nonColorKeywords.some(keyword => remoteKey.toLowerCase().includes(keyword))) return;
 
@@ -146,91 +159,79 @@
       }
     };
 
-    // Trigger Step 2: Inject tokens surgically into matching sections
     document.getElementById('apply-btn').onclick = () => {
       document.getElementById('apply-btn').disabled = true;
       document.getElementById('apply-btn').innerText = "Deploying updates to code blocks...";
       
       let updatedMarkdown = fullOriginalMarkdown;
 
-      // 1. Map Figma collection IDs straight to your master document's exact subheadings
-      const sectionMapping = {
-        "Tailwind Colors": "## Base\n\n```yaml\n" + (localGroupedYaml["Tailwind Colors"] || "") + "```",
-        "shadcn theme": "" // Handled below because it needs to be split between Light and Dark sections
-      };
-
-      // 2. SURGICAL INJECTION: Handle shadcn theme Modes splitting cleanly
-      // We parse the generated master block from the tokens and separate them by light/dark suffixes
+      // 1. SURGICAL INJECTION: Split 'shadcn theme' collection into Light and Dark Mode sections
       if (localGroupedYaml["shadcn theme"]) {
         const lines = localGroupedYaml["shadcn theme"].split('\n');
         let lightLines = "";
         let darkLines = "";
-        let neutralLines = ""; // For shared elements like background-body, destructive, etc.
 
         lines.forEach(line => {
           if (!line.trim()) return;
-          if (line.includes('-light')) {
-            lightLines += line + "\n";
-          } else if (line.includes('-dark')) {
-            darkLines += line + "\n";
+          
+          // Route tokens ending in -light to Light Mode, -dark to Dark Mode
+          if (line.includes('-light:')) {
+            // Clean up the "-light" suffix so it matches your clean document specs
+            lightLines += line.replace('-light:', ':') + "\n";
+          } else if (line.includes('-dark:')) {
+            // Clean up the "-dark" suffix so it matches your clean document specs
+            darkLines += line.replace('-dark:', ':') + "\n";
           } else {
-            // Shared properties like background-body or semantic statuses
-            if (line.startsWith('background-body')) {
-              // Application shell placement target
-              const bodyRegex = /(## Application Shell[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
-              updatedMarkdown = updatedMarkdown.replace(sectionRegex, `$1${line}\n$3`);
-            } else {
-              // Share equally among both semantic blocks
-              lightLines += line + '\n';
-              darkLines += line + '\n';
-            }
+            // Put shared global variables (like background-body or status colors) in both blocks
+            lightLines += line + '\n';
+            darkLines += line + '\n';
           }
         });
 
-        // Replace the block inside '## 1. Light Mode'
-        const lightRegex = /(## 1\. Light Mode[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
+        // Inject directly into your existing Light Mode section block
+        const lightRegex = /(## 1\. Light Mode[\s\S]*?### Background[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
         if (lightRegex.test(updatedMarkdown)) {
           updatedMarkdown = updatedMarkdown.replace(lightRegex, `$1${lightLines}$3`);
         }
 
-        // Replace the block inside '## 2. Dark Mode'
-        const darkRegex = /(## 2\. Dark Mode[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
+        // Inject directly into your existing Dark Mode section block
+        const darkRegex = /(## 2\. Dark Mode[\s\S]*?### Background[\s\S]*?```yaml\n)([\s\S]*?)(\`\`\`)/g;
         if (darkRegex.test(updatedMarkdown)) {
           updatedMarkdown = updatedMarkdown.replace(darkRegex, `$1${darkLines}$3`);
         }
       }
 
-      // 3. SURGICAL INJECTION: Handle Base Palette mapping
-      // Instead of wiping out your separate color subheadings (## Blue, ## Mint), we look for your main umbrella heading
+      // 2. SURGICAL INJECTION: Break down 'Tailwind Colors' collection into Base, Blue, Gray, etc.
       if (localGroupedYaml["Tailwind Colors"]) {
-        // Find the complete text spectrum between '# Tailwind Color Palette' and '# shadcn Theme'
-        const paletteRegex = /(# Tailwind Color Palette[\s\S]*? Foundation colors used by the shadcn theme tokens\.\n\n)([\s\S]*?)(# shadcn Theme)/g;
-        
-        if (paletteRegex.test(updatedMarkdown)) {
-          // Generate a beautifully grouped palette string that mimics your documentation file layout
-          let groupedPaletteText = "";
-          const colorLines = localGroupedYaml["Tailwind Colors"].split('\n');
-          const colorGroups = {};
+        const colorLines = localGroupedYaml["Tailwind Colors"].split('\n');
+        const colorGroups = {};
 
-          colorLines.forEach(line => {
-            if (!line.trim()) return;
-            const parts = line.split('/');
-            if (parts.length > 1) {
-              const groupName = parts[0].trim();
-              const formattedLine = line.replace(`${groupName}/`, ''); // clear parent prefix prefix
-              if (!colorGroups[groupName]) colorGroups[groupName] = [];
-              colorGroups[groupName].push(formattedLine);
-            }
-          });
-
-          for (const [groupName, linesList] of Object.entries(colorGroups)) {
-            // Capitalize the subheader (e.g. blue -> ## Blue)
-            const capitalizedHeader = groupName.charAt(0).toUpperCase() + groupName.slice(1);
-            groupedPaletteText += `## ${capitalizedHeader}\n\n\`\`\`yaml\n${linesList.join('\n')}\n\`\`\`\n\n`;
+        // Sort lines by their subgroup prefix (e.g., base/black -> base)
+        colorLines.forEach(line => {
+          if (!line.trim()) return;
+          const parts = line.split('/');
+          if (parts.length > 1) {
+            const groupName = parts[0].trim(); // 'base', 'blue', 'gray', etc.
+            
+            // Reconstruct the line to match your exact format: 'tailwind.blue.50: "#xxxxxx"'
+            const cleanTokenLine = `tailwind.${groupName}.${line.replace(`${groupName}/`, '')}`;
+            
+            if (!colorGroups[groupName]) colorGroups[groupName] = [];
+            colorGroups[groupName].push(cleanTokenLine);
           }
+        });
 
-          // Inject the clean groups right between the umbrella layout boundaries safely!
-          updatedMarkdown = updatedMarkdown.replace(paletteRegex, `$1${groupedPaletteText}$3`);
+        // Loop through each group found (Base, Blue, Gray, Mint, etc.) and update its specific section
+        for (const [groupName, linesList] of Object.entries(colorGroups)) {
+          // Capitalize the first letter to match your Markdown subheaders exactly (blue -> Blue)
+          const capitalizedHeader = groupName.charAt(0).toUpperCase() + groupName.slice(1);
+          
+          // Target the exact block markdown combination dynamically
+          const blockRegex = new RegExp(`(## ${capitalizedHeader}\\n\\n\`\`\`yaml\\n)([\\s\\S]*?)(\`\`\`)`, 'g');
+          
+          if (blockRegex.test(updatedMarkdown)) {
+            updatedMarkdown = updatedMarkdown.replace(paletteRegex, `$1${linesList.join('\n')}\n$3`);
+          }
         }
       }
 
