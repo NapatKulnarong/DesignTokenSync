@@ -71,9 +71,7 @@ Foundation colors used by the shadcn theme tokens.
 ## Base
 
 ```yaml
-tailwind.base.black: "{alias}"
 tailwind.base.black: "#05080D"
-tailwind.base.white: "{alias}"
 tailwind.base.white: "#FFFFFF"
 ```
 
