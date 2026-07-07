@@ -3,138 +3,201 @@
 <head>
   <meta charset="utf-8">
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      padding: 16px;
-      margin: 0;
-      background-color: #f5f5f5;
-    }
-    button {
-      width: 100%;
-      background-color: #0048FF; /* Omise Electric Blue primary */
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 6px;
-      font-weight: 600;
-      cursor: pointer;
-      font-size: 14px;
-      margin-bottom: 16px;
-    }
-    button:hover {
-      background-color: #003BD3;
-    }
-    textarea {
-      width: 100%;
-      height: 340px;
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-      font-size: 12px;
-      padding: 8px;
-      box-sizing: border-box;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background-color: #fff;
-      resize: none;
-    }
-    .label {
-      font-size: 12px;
-      font-weight: 600;
-      color: #333;
-      margin-bottom: 6px;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 16px; margin: 0; background-color: #f8fafc; color: #0f172a; }
+    select, button { width: 100%; padding: 10px; border-radius: 6px; font-size: 14px; margin-bottom: 12px; box-sizing: border-box; }
+    select { border: 1px solid #cbd5e1; background: white; }
+    button { background-color: #0048FF; color: white; border: none; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button:hover { background-color: #003BD3; }
+    button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+    #apply-btn { background-color: #16a34a; display: none; }
+    #apply-btn:hover { background-color: #15803d; }
+    .change-log-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; height: 180px; overflow-y: auto; font-size: 12px; margin-bottom: 12px; }
+    .log-item { margin-bottom: 4px; font-family: monospace; }
+    .added { color: #16a34a; font-weight: 600; }
+    .modified { color: #d97706; font-weight: 600; }
+    .deleted { color: #dc2626; font-weight: 600; }
+    .label { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px; }
   </style>
 </head>
 <body>
 
-  <button id="extract">Extract Design Tokens</button>
+  <div class="label">1. Choose Target Token Collection:</div>
+  <select id="collection-select"><option>Loading collections...</option></select>
+
+  <button id="compare-btn">2. Fetch & Compare with HackMD</button>
   
-  <div class="label">Generated YAML / Markdown Output:</div>
-  <textarea id="output" placeholder="Click the button above to generate your tokens..."></textarea>
+  <div class="label">Review System Modifications:</div>
+  <div id="changelog" class="change-log-box">Select a collection and run comparison check.</div>
+  
+  <button id="apply-btn">3. Apply Changes to HackMD.io</button>
 
   <script>
-    // 1. Helper function to turn Figma's 0-1 RGBA into clean uppercase Hex strings
-    function figmaRgbToHex(color) {
-      if (!color || color.r === undefined) return "unknown";
-      const toHex = (n) => {
-        const hex = Math.round(n * 255).toString(16);
-        return hex.length === 1 ? '0' + hex : hex;
-      };
-      return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`.toUpperCase();
-    }
+    // CRITICAL SECURITY LINK CONFIGURATION
+    const GITHUB_TOKEN = "ghp_YOUR_MASTER_TOKEN_HERE"; // Put YOUR Personal Access Token here
+    const REPO_OWNER = "NapatKulnarong";
+    const REPO_NAME = "DesignTokenSync";
+    const FILE_PATH = "DESIGN.md";
 
-    // 2. Trigger the extraction when the user clicks our button
-    document.getElementById('extract').onclick = () => {
-      parent.postMessage({ pluginMessage: { type: 'EXTRACT_TOKENS' } }, '*');
-    };
+    let remoteTokens = {};
+    let fullOriginalMarkdown = "";
+    let fileSha = "";
+    let generatedYamlBlock = "";
 
-    // 3. Listen for the back-end (code.js) to send the token payload back
-    window.onmessage = (event) => {
-  const message = event.data.pluginMessage;
-  if (!message) return;
-
-  if (message.type === 'ERROR') {
-    document.getElementById('output').value = `❌ ERROR:\n${message.message}`;
-    document.getElementById('output').style.color = '#D92121';
-    return;
-  }
-  
-  if (message.type === 'TOKENS_EXTRACTED') {
-    document.getElementById('output').style.color = '#333333';
-    const tokens = message.payload;
-    let yamlOutput = "";
-
-    const grouped = {};
-    tokens.forEach(token => {
-      if (!grouped[token.collection]) {
-        grouped[token.collection] = [];
-      }
-      grouped[token.collection].push(token);
-    });
-
-    // Define how your Figma modes map to your design system suffixes
-    // Define how your Figma modes map to your design system suffixes
-    const modeMap = {
-      1: 'light',
-      2: 'dark'
-    };
-
-    for (const [collection, tokenList] of Object.entries(grouped)) {
-      yamlOutput += `## ${collection}\n\n\`\`\`yaml\n`;
-      
-      tokenList.forEach(token => {
-        // 1. FIX: Automatically skip any tracking configuration prefixed with "hide/"
-        if (token.name.startsWith('hide/')) {
-          return; 
-        }
-
-        const modeIds = Object.keys(token.values);
-        
-        if (modeIds.length === 1) {
-          // Single-mode tokens
-          yamlOutput += `${token.name}: "${token.values[modeIds[0]]}"\n`;
-        } else {
-          // 2. FIX: Check if the values in both modes are exactly identical (like the Tailwind palette)
-          const firstVal = token.values[modeIds[0]];
-          const allModesIdentical = modeIds.every(modeId => token.values[modeId] === firstVal);
-
-          if (allModesIdentical) {
-            // If the values don't change across modes, print it as a single static token without suffixes
-            yamlOutput += `${token.name}: "${firstVal}"\n`;
-          } else {
-            // Multi-mode semantic tokens that actually DO change get their proper suffixes
-            modeIds.forEach((modeId, index) => {
-              const modeSuffix = modeMap[index + 1] || `mode_${index + 1}`;
-              yamlOutput += `${token.name}-${modeSuffix}: "${token.values[modeId]}"\n`;
-            });
+    // Parse existing keys out of the current document markdown file
+    function parseTokensFromMarkdown(mdContent) {
+      const tokens = {};
+      const codeBlockRegex = /```yaml([\s\S]*?)```/g;
+      let match;
+      while ((match = codeBlockRegex.exec(mdContent)) !== null) {
+        match[1].split('\n').forEach(line => {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#')) return;
+          const parts = trimmed.split(':');
+          if (parts.length >= 2) {
+            tokens[parts[0].trim()] = parts.slice(1).join(':').trim().replace(/^"|"$/g, '');
           }
-        }
-      });
-      
-      yamlOutput += `\`\`\`\n\n`;
+        });
+      }
+      return tokens;
     }
-    document.getElementById('output').value = yamlOutput;
-  }
-};
+
+    // Capture initial options payloads from Figma thread
+    window.onmessage = async (event) => {
+      const message = event.data.pluginMessage;
+      if (!message) return;
+
+      if (message.type === 'COLLECTIONS_LOADED') {
+        const select = document.getElementById('collection-select');
+        select.innerHTML = message.payload.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        return;
+      }
+
+      if (message.type === 'ERROR') {
+        document.getElementById('changelog').innerHTML = `<span style='color:red;'>Error: ${message.message}</span>`;
+        return;
+      }
+
+      if (message.type === 'TOKENS_EXTRACTED') {
+        const tokens = message.payload;
+        let logHTML = "";
+        let localTokenKeys = new Set();
+        const modeMap = { 1: 'light', 2: 'dark' };
+        
+        let activeCollectionName = tokens[0] ? tokens[0].collection : "Tokens";
+        generatedYamlBlock = "";
+
+        tokens.forEach(token => {
+          const modeIds = Object.keys(token.values);
+          
+          const checkDiff = (key, val) => {
+            localTokenKeys.add(key);
+            if (remoteTokens[key] === undefined) {
+              logHTML += `<div class="log-item added">[ADDED] ${key}: "${val}"</div>`;
+            } else if (remoteTokens[key] !== val) {
+              logHTML += `<div class="log-item modified">[MODIFIED] ${key}: "${remoteTokens[key]}" ➔ "${val}"</div>`;
+            }
+          };
+
+          if (modeIds.length === 1) {
+            const val = token.values[modeIds[0]];
+            generatedYamlBlock += `${token.name}: "${val}"\n`;
+            checkDiff(token.name, val);
+          } else {
+            const firstVal = token.values[modeIds[0]];
+            const allModesIdentical = modeIds.every(mId => token.values[mId] === firstVal);
+
+            if (allModesIdentical) {
+              generatedYamlBlock += `${token.name}: "${firstVal}"\n`;
+              checkDiff(token.name, firstVal);
+            } else {
+              modeIds.forEach((modeId, index) => {
+                const modeSuffix = modeMap[index + 1] || `mode_${index + 1}`;
+                const keyName = `${token.name}-${modeSuffix}`;
+                const val = token.values[modeId];
+                generatedYamlBlock += `${keyName}: "${val}"\n`;
+                checkDiff(keyName, val);
+              });
+            }
+          }
+        });
+
+        document.getElementById('changelog').innerHTML = logHTML || `<div style="color: #64748b;">✓ No changes detected. Figma matches HackMD perfectly.</div>`;
+        document.getElementById('compare-btn').disabled = false;
+        
+        if (logHTML) {
+          document.getElementById('apply-btn').style.display = 'block';
+        } else {
+          document.getElementById('apply-btn').style.display = 'none';
+        }
+      }
+    };
+
+    // Step 2 & 3: Run the comparison fetch routines
+    document.getElementById('compare-btn').onclick = async () => {
+      document.getElementById('compare-btn').disabled = true;
+      document.getElementById('changelog').innerText = "Fetching source data from HackMD/GitHub...";
+      
+      const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+      try {
+        const response = await fetch(url, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
+        if (!response.ok) throw new Error("Could not download file.");
+        
+        const data = await response.json();
+        fileSha = data.sha; // Save git hash pointer to enable overwriting
+        fullOriginalMarkdown = decodeURIComponent(escape(atob(data.content)));
+        remoteTokens = parseTokensFromMarkdown(fullOriginalMarkdown);
+        
+        const collectionId = document.getElementById('collection-select').value;
+        parent.postMessage({ pluginMessage: { type: 'EXTRACT_TOKENS', collectionId } }, '*');
+      } catch (err) {
+        document.getElementById('changelog').innerHTML = `<span style='color:red;'>Network error: ${err.message}</span>`;
+        document.getElementById('compare-btn').disabled = false;
+      }
+    };
+
+    // Step 4: One-click background push injector
+    document.getElementById('apply-btn').onclick = async () => {
+      document.getElementById('apply-btn').disabled = true;
+      document.getElementById('apply-btn').innerText = "Injecting changes into HackMD...";
+      
+      const select = document.getElementById('collection-select');
+      const selectedCollectionName = select.options[select.selectedIndex].text;
+      
+      // Target the matching section header inside your DESIGN.md text layout
+      const sectionRegex = new RegExp(`(## ${selectedCollectionName}\\n\\n\`\`\`yaml\\n)([\\s\\S]*?)(\`\`\`)`, 'g');
+      
+      let updatedMarkdown = fullOriginalMarkdown;
+      if (sectionRegex.test(fullOriginalMarkdown)) {
+        updatedMarkdown = fullOriginalMarkdown.replace(sectionRegex, `$1${generatedYamlBlock}$3`);
+      } else {
+        updatedMarkdown += `\n\n## ${selectedCollectionName}\n\n\`\`\`yaml\n${generatedYamlBlock}\`\`\n`;
+      }
+
+      // Commit changes directly back into GitHub repo line via API request payload
+      const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+      try {
+        const putResponse = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: `style: automated token sync injection for collection [${selectedCollectionName}]`,
+            content: btoa(unescape(encodeURIComponent(updatedMarkdown))),
+            sha: fileSha
+          })
+        });
+
+        if (putResponse.ok) {
+          document.getElementById('changelog').innerHTML = "<div style='color:#16a34a; font-weight:bold;'>🎉 SUCCESS! HackMD has been successfully updated live!</div>";
+          document.getElementById('apply-btn').style.display = 'none';
+          parent.postMessage({ pluginMessage: { type: 'NOTIFY', message: 'HackMD documentation sync completed!' } }, '*');
+        } else {
+          throw new Error("GitHub rejected the write update pack.");
+        }
+      } catch (err) {
+        document.getElementById('changelog').innerHTML = `<span style='color:red;'>Write failure: ${err.message}</span>`;
+      }
+      document.getElementById('apply-btn').disabled = false;
+    };
   </script>
 </body>
 </html>
