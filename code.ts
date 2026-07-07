@@ -1,7 +1,7 @@
 figma.showUI(__html__, { width: 450, height: 550 });
 
 // SECURITY DATA LINK CONFIGURATION
-const GITHUB_TOKEN = "ghp_YOUR_MASTER_TOKEN_HERE"; // Put YOUR Personal Access Token here
+const GITHUB_TOKEN = "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"; 
 const REPO_OWNER = "NapatKulnarong";
 const REPO_NAME = "DesignTokenSync";
 const FILE_PATH = "DESIGN.md";
