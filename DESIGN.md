@@ -1,3 +1,8 @@
+---
+title: DESIGN
+
+---
+
 version: 0.1.0
 name: Mint Design System
 product: Omise (Monolith Payment Orchestration)
@@ -190,33 +195,33 @@ tailwind.green.950: "#052E16"
 ## Orange
 
 ```yaml
-tailwind.orange.700: "#C2410C"
-tailwind.orange.400: "#FB923C"
-tailwind.orange.800: "#9A3412"
-tailwind.orange.500: "#F97316"
-tailwind.orange.300: "#FDBA74"
-tailwind.orange.600: "#EA580C"
+tailwind.orange.50: "#FFF7ED"
+tailwind.orange.100: "#FFEDD5"
 tailwind.orange.200: "#FED7AA"
+tailwind.orange.300: "#FDBA74"
+tailwind.orange.400: "#FB923C"
+tailwind.orange.500: "#F97316"
+tailwind.orange.600: "#EA580C"
+tailwind.orange.700: "#C2410C"
+tailwind.orange.800: "#9A3412"
 tailwind.orange.900: "#7C2D12"
 tailwind.orange.950: "#431407"
-tailwind.orange.100: "#FFEDD5"
-tailwind.orange.50: "#FFF7ED"
 ```
 
 ## Brown
 
 ```yaml
-tailwind.brown.900: "#281C11"
-tailwind.brown.800: "#3A2919"
-tailwind.brown.600: "#6B4F34"
-tailwind.brown.500: "#926F4E"
-tailwind.brown.700: "#58402A"
-tailwind.brown.400: "#B7916D"
-tailwind.brown.200: "#E6CAAF"
-tailwind.brown.950: "#110C07"
-tailwind.brown.100: "#EFDFD0"
-tailwind.brown.300: "#CEAC8D"
 tailwind.brown.50: "#FCF6F1"
+tailwind.brown.100: "#FFDFD0"
+tailwind.brown.200: "#E6CAAF"
+tailwind.brown.300: "#CEAC8D"
+tailwind.brown.400: "#B7916D"
+tailwind.brown.500: "#926F4E"
+tailwind.brown.600: "#6B4F34"
+tailwind.brown.700: "#58402A"
+tailwind.brown.800: "#3A2919"
+tailwind.brown.900: "#281C11"
+tailwind.brown.950: "#110C07"
 ```
 
 # shadcn Theme
@@ -238,8 +243,11 @@ background-body: "{tailwind.base.black}"
 Use `background-light` as the Main Content background in Light Mode. The application shell behind it uses `background-body`, while `inverse-light` is reserved for dark content sections that need strong contrast.
 
 ```yaml
-background: "{base.white}"
-inverse: "{base.black}"
+background-light: "{tailwind.base.white}"
+inverse-light: "{tailwind.base.black}"
+white: "{tailwind.base.white}"
+black: "{tailwind.base.black}"
+transparent: "{tailwind.base.white}/0%"
 ```
 
 ### Surface
@@ -343,8 +351,11 @@ appbar-border: "{tailwind.base.black}"
 Use `background-dark` as the Main Content background in Dark Mode. The application shell behind it continues to use `background-body`, while `inverse-dark` is reserved for light content sections that need strong contrast.
 
 ```yaml
-background: "{base.black}"
-inverse: "{base.white}"
+background-dark: "{tailwind.base.black}"
+inverse-dark: "{tailwind.base.white}"
+white: "{tailwind.base.white}"
+black: "{tailwind.base.black}"
+transparent: "{tailwind.base.white}/0%"
 ```
 
 ### Surface
