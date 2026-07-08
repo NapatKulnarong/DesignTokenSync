@@ -212,7 +212,7 @@ tailwind.orange.950: "#431407"
 
 ```yaml
 tailwind.brown.50: "#FCF6F1"
-tailwind.brown.100: "#FFDFD0"
+tailwind.brown.100: "#EFDFD0"
 tailwind.brown.200: "#E6CAAF"
 tailwind.brown.300: "#CEAC8D"
 tailwind.brown.400: "#B7916D"
@@ -259,6 +259,7 @@ card: "{base.white}"
 card-low: "#F9FAFC"
 popover: "{base.white}"
 muted: "{gray.50}"
+card-high: "{muted}"
 ```
 
 ### Foreground
@@ -286,6 +287,8 @@ accent: "{mint.300}"
 accent-foreground: "{mint.800}"
 accent-subtle: "{opacity.accent.40}"
 accent-outline: "{opacity.accent.70}"
+secondary-foreground: "{tailwind.gray.100}"
+secondary-subtle: "{opacity.gray.300.20}"
 ```
 
 ### Semantic
@@ -300,6 +303,19 @@ purple-subtle: "{opacity.purple.20}"
 brown: "{brown.700}"
 brown-subtle: "{opacity.brown.20}"
 brown-outline: "{opacity.brown.70}"
+destructive: "{tailwind.red.500}"
+destructive-foreground: "{tailwind.red.50}"
+success: "{tailwind.green.600}"
+warning-foreground: "{tailwind.yellow.900}"
+warning-subtle: "{opacity.warning.500.30}"
+warning: "{tailwind.yellow.400}"
+success-foreground: "{tailwind.green.50}"
+purple-foreground: "{tailwind.purple.50}"
+purple: "{tailwind.purple.500}"
+orange: "{tailwind.orange.500}"
+orange-subtle: "#F97316/20%"
+orange-foreground: "{tailwind.orange.50}"
+brown-foreground: "{tailwind.brown.50}"
 ```
 
 ### Border & Ring
@@ -310,6 +326,11 @@ Use border and ring tokens for structure, input boundaries, focus states, and in
 border: "{gray.100}"
 input: "{gray.300}"
 brown-outline: "{opacity.brown.70}"
+ring: "{tailwind.blue.400}"
+destructive-outline: "{opacity.destructive.70}"
+success-outline: "{opacity.success.70}"
+warning-outline: "{opacity.warning.500.70}"
+purple-outline: "{opacity.purple.70}"
 ```
 
 ### Sidebar
@@ -336,12 +357,12 @@ Use Appbar tokens for top navigation surfaces. In Dark Mode, appbar surfaces sta
 ```yaml
 appbar: "{tailwind.base.black}"
 appbar-hover: "{tailwind.gray.800}"
-appbar-foreground: "{tailwind.gray.300}"
+appbar-foreground: "{tailwind.gray.200}"
 appbar-active: "{tailwind.gray.800}"
 appbar-active-foreground: "{tailwind.base.white}"
 appbar-accent: "{tailwind.gray.900}"
 appbar-accent-foreground: "{tailwind.mint.300}"
-appbar-border: "{tailwind.base.black}"
+appbar-border: "{tailwind.gray.800}"
 ```
 
 ## 2. Dark Mode
@@ -367,6 +388,7 @@ card: "{gray.900}"
 card-low: "#121723"
 popover: "{base.black}"
 muted: "#121723"
+card-high: "{muted}"
 ```
 
 ### Foreground
@@ -394,6 +416,8 @@ accent: "{blue.500}"
 accent-foreground: "{blue.50}"
 accent-subtle: "{opacity.primary.40}"
 accent-outline: "{opacity.primary.70}"
+secondary-foreground: "{tailwind.gray.100}"
+secondary-subtle: "{opacity.gray.300.20}"
 ```
 
 ### Semantic
@@ -408,6 +432,19 @@ purple-subtle: "{opacity.purple.40}"
 brown: "{brown.500}"
 brown-subtle: "{opacity.brown.60}"
 brown-outline: "{opacity.brown.95}"
+destructive: "{tailwind.red.500}"
+destructive-foreground: "{tailwind.red.50}"
+success: "{tailwind.green.600}"
+warning-foreground: "{tailwind.yellow.900}"
+warning-subtle: "{opacity.warning.500.30}"
+warning: "{tailwind.yellow.400}"
+success-foreground: "{tailwind.green.50}"
+purple-foreground: "{tailwind.purple.50}"
+purple: "{tailwind.purple.500}"
+orange: "{tailwind.orange.500}"
+orange-subtle: "#F97316/20%"
+orange-foreground: "{tailwind.orange.50}"
+brown-foreground: "{tailwind.brown.50}"
 ```
 
 ### Border & Ring
@@ -418,6 +455,11 @@ Use border and ring tokens for structure, input boundaries, focus states, and in
 border: "{gray.700}"
 input: "{gray.700}"
 brown-outline: "{opacity.brown.95}"
+ring: "{tailwind.blue.400}"
+destructive-outline: "{opacity.destructive.70}"
+success-outline: "{opacity.success.70}"
+warning-outline: "{opacity.warning.500.70}"
+purple-outline: "{opacity.purple.70}"
 ```
 
 ### Sidebar
@@ -444,12 +486,12 @@ Use Appbar tokens for top navigation surfaces. In Dark Mode, appbar surfaces sta
 ```yaml
 appbar: "{tailwind.base.black}"
 appbar-hover: "{tailwind.gray.800}"
-appbar-foreground: "{tailwind.gray.300}"
+appbar-foreground: "{tailwind.gray.200}"
 appbar-active: "{tailwind.gray.800}"
 appbar-active-foreground: "{tailwind.base.white}"
 appbar-accent: "{tailwind.gray.900}"
 appbar-accent-foreground: "{tailwind.mint.300}"
-appbar-border: "{tailwind.base.black}"
+appbar-border: "{tailwind.gray.800}"
 ```
 
 # Color Usage
